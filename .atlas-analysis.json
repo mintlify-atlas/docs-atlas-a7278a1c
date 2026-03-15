@@ -1,0 +1,220 @@
+{
+  "projectType": "saas",
+  "projectName": "Dify",
+  "projectDescription": "Production-ready open-source platform for building and deploying LLM-powered agentic workflows, RAG pipelines, and AI applications with a visual interface and comprehensive API.",
+  "theme": "maple",
+  "primaryColor": "#0440d4",
+  "lightColor": "#5da0f3",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "key-concepts"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/cloud",
+              "getting-started/self-hosting",
+              "getting-started/docker-compose",
+              "getting-started/environment-variables"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/workflow",
+              "features/agentic-ai",
+              "features/rag-pipeline",
+              "features/prompt-ide",
+              "features/model-support",
+              "features/tools"
+            ]
+          },
+          {
+            "group": "Building Applications",
+            "pages": [
+              "applications/overview",
+              "applications/chatbot",
+              "applications/text-generator",
+              "applications/agent",
+              "applications/workflow-app"
+            ]
+          },
+          {
+            "group": "Knowledge & RAG",
+            "pages": [
+              "knowledge/overview",
+              "knowledge/creating-datasets",
+              "knowledge/document-ingestion",
+              "knowledge/retrieval-settings",
+              "knowledge/embedding-models"
+            ]
+          },
+          {
+            "group": "Models & Providers",
+            "pages": [
+              "models/overview",
+              "models/supported-providers",
+              "models/configuring-models",
+              "models/custom-model-providers"
+            ]
+          },
+          {
+            "group": "Plugins & Extensions",
+            "pages": [
+              "plugins/overview",
+              "plugins/installing-plugins",
+              "plugins/mcp-integration",
+              "plugins/custom-tools"
+            ]
+          },
+          {
+            "group": "Workflow Nodes",
+            "pages": [
+              "workflow-nodes/overview",
+              "workflow-nodes/llm",
+              "workflow-nodes/knowledge-retrieval",
+              "workflow-nodes/code",
+              "workflow-nodes/http-request",
+              "workflow-nodes/agent",
+              "workflow-nodes/iteration",
+              "workflow-nodes/conditional"
+            ]
+          },
+          {
+            "group": "LLMOps & Observability",
+            "pages": [
+              "llmops/overview",
+              "llmops/logs-and-annotations",
+              "llmops/monitoring",
+              "llmops/tracing-integrations"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "administration/workspace",
+              "administration/members-and-roles",
+              "administration/billing-plans",
+              "administration/sso-and-auth"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/overview",
+              "self-hosting/docker-compose",
+              "self-hosting/kubernetes",
+              "self-hosting/environment-config",
+              "self-hosting/upgrade"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction",
+              "api-reference/authentication",
+              "api-reference/errors"
+            ]
+          },
+          {
+            "group": "Chat & Completion",
+            "pages": [
+              "api-reference/chat/send-message",
+              "api-reference/chat/stop-message",
+              "api-reference/chat/get-messages",
+              "api-reference/chat/conversations"
+            ]
+          },
+          {
+            "group": "Completion Apps",
+            "pages": [
+              "api-reference/completion/create",
+              "api-reference/completion/stop"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "api-reference/workflows/run",
+              "api-reference/workflows/stop",
+              "api-reference/workflows/logs"
+            ]
+          },
+          {
+            "group": "Knowledge / Datasets",
+            "pages": [
+              "api-reference/datasets/create-dataset",
+              "api-reference/datasets/list-datasets",
+              "api-reference/datasets/create-document",
+              "api-reference/datasets/list-documents",
+              "api-reference/datasets/delete-document",
+              "api-reference/datasets/retrieve"
+            ]
+          },
+          {
+            "group": "Files & Audio",
+            "pages": [
+              "api-reference/files/upload",
+              "api-reference/audio/text-to-speech",
+              "api-reference/audio/speech-to-text"
+            ]
+          },
+          {
+            "group": "Apps & Metadata",
+            "pages": [
+              "api-reference/apps/info",
+              "api-reference/apps/parameters",
+              "api-reference/apps/meta"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Visual AI workflow builder with drag-and-drop canvas",
+    "Comprehensive RAG pipeline with multi-format document ingestion",
+    "Agent framework supporting LLM Function Calling and ReAct",
+    "Support for 100+ LLM providers including OpenAI, Anthropic, Gemini, and open-source models",
+    "Prompt IDE for iterative prompt development and model comparison",
+    "MCP (Model Context Protocol) integration for tool extensibility",
+    "Plugin marketplace for extending capabilities",
+    "LLMOps dashboard for monitoring, logging, and annotation",
+    "Backend-as-a-Service REST API for all platform features",
+    "Docker Compose and Kubernetes deployment support",
+    "Multi-tenant workspace with role-based access control",
+    "Built-in observability integrations (Langfuse, Arize Phoenix, Opik)"
+  ],
+  "publicApiSurface": [
+    "POST /v1/chat-messages — Send chat message to a chatbot app",
+    "POST /v1/completion-messages — Send completion request",
+    "POST /v1/workflows/run — Execute a workflow",
+    "GET /v1/messages — List conversation messages",
+    "GET /v1/conversations — List conversations",
+    "POST /v1/datasets — Create a knowledge dataset",
+    "POST /v1/datasets/{dataset_id}/document/create-by-text — Create document",
+    "GET /v1/datasets/{dataset_id}/documents — List documents",
+    "POST /v1/datasets/{dataset_id}/retrieve — Retrieve from dataset",
+    "POST /v1/files/upload — Upload file",
+    "POST /v1/audio-to-text — Speech to text",
+    "POST /v1/text-to-audio — Text to speech",
+    "GET /v1/info — App info",
+    "GET /v1/parameters — App parameters",
+    "GET /v1/meta — App metadata and tool icons"
+  ]
+}
