@@ -1,0 +1,130 @@
+---
+title: 'Visual AI workflow builder'
+description: 'Build multi-step AI pipelines with a drag-and-drop canvas. Connect LLMs, knowledge bases, code execution, HTTP requests, and more into production-ready workflows.'
+---
+
+The workflow builder lets you assemble AI pipelines on a visual canvas. Each step in a pipeline is a **node**. Nodes are connected by **edges** that define the execution order. When a workflow runs, Dify traverses the graph from the start node to the end node, executing each node in sequence or in parallel depending on your configuration.
+
+## Node types
+
+<CardGroup cols={2}>
+  <Card title="LLM" icon="brain">
+    Call any configured language model with a prompt template. Supports system prompt, user message, assistant prefix, vision inputs, and memory.
+  </Card>
+  <Card title="Knowledge retrieval" icon="database">
+    Query one or more knowledge bases and inject the retrieved chunks into downstream nodes. Supports semantic, full-text, hybrid, and keyword search.
+  </Card>
+  <Card title="Code" icon="code">
+    Execute arbitrary Python or JavaScript snippets in a sandboxed environment. Use this to transform data, parse responses, or compute values.
+  </Card>
+  <Card title="HTTP request" icon="globe">
+    Make outbound HTTP calls to any API. Supports GET, POST, PUT, PATCH, DELETE, HEAD. Response body, status code, and headers are available as output variables.
+  </Card>
+  <Card title="Agent" icon="robot">
+    Run an autonomous agent sub-loop inside a workflow node. The agent can call tools iteratively until it reaches a final answer.
+  </Card>
+  <Card title="Iteration" icon="repeat">
+    Loop over a list of items and execute a sub-graph for each item. Useful for batch processing arrays of data.
+  </Card>
+  <Card title="Condition (IF/ELSE)" icon="split">
+    Branch workflow execution based on variable values. Supports multiple condition groups with AND/OR logic.
+  </Card>
+  <Card title="Template" icon="file-text">
+    Render a Jinja2 template string using variables from the workflow context. Useful for formatting output before passing it to the next node.
+  </Card>
+  <Card title="Variable aggregator" icon="merge">
+    Merge outputs from multiple branches into a single variable so downstream nodes receive a consistent value regardless of which branch executed.
+  </Card>
+  <Card title="Question classifier" icon="list">
+    Use an LLM to classify an input into one of several predefined categories, then route the workflow to the matching branch.
+  </Card>
+  <Card title="Parameter extractor" icon="scissors">
+    Use an LLM to extract structured parameters from unstructured text and expose them as typed output variables.
+  </Card>
+  <Card title="Document extractor" icon="file">
+    Extract text content from uploaded files (PDF, DOCX, PPT, XLSX, and more) for use in downstream nodes.
+  </Card>
+</CardGroup>
+
+## Building a workflow
+
+<Steps>
+  <Step title="Create a workflow app">
+    From the Dify dashboard, select **Create app** and choose **Workflow**. Give it a name and click **Create**.
+  </Step>
+  <Step title="Add a start node">
+    The canvas opens with a **Start** node already placed. Click the Start node to configure its input fields. These become the variables you can reference throughout the workflow using the `{{variable_name}}` syntax.
+  </Step>
+  <Step title="Add nodes">
+    Click the **+** button on any node's output port, or drag a node type from the left panel onto the canvas. Each new node opens a configuration panel on the right.
+  </Step>
+  <Step title="Connect edges">
+    Drag from an output port to an input port to draw an edge. Edges carry the execution flow and also define which node outputs are available as inputs to downstream nodes.
+  </Step>
+  <Step title="Configure nodes">
+    Select a node to open its settings. Reference upstream outputs using the variable selector (`/` to open the picker) or the `{{node_id.output_variable}}` syntax.
+  </Step>
+  <Step title="Add an end node">
+    Every workflow path must terminate at an **End** node. Configure which variables to surface as the final workflow output.
+  </Step>
+  <Step title="Test and debug">
+    Use the **Run** button in the top-right to execute the workflow with test inputs. You can also click the run icon on any individual node to execute just that step and inspect its output.
+  </Step>
+</Steps>
+
+## Workflow variables
+
+Dify exposes several categories of variables you can reference in node configurations.
+
+<Tabs>
+  <Tab title="System variables">
+    System variables are injected automatically by the runtime. They are accessible via the `sys` namespace.
+
+    | Variable | Description |
+    |---|---|
+    | `sys.query` | The user's input message (chatflow mode) |
+    | `sys.conversation_id` | Current conversation identifier |
+    | `sys.user_id` | The authenticated user ID |
+    | `sys.app_id` | The application ID |
+    | `sys.workflow_id` | The workflow definition ID |
+    | `sys.workflow_run_id` | Unique ID for the current execution run |
+    | `sys.files` | Files uploaded with the current request |
+  </Tab>
+  <Tab title="Environment variables">
+    Environment variables are defined at the workflow level and are constant across all runs. Use them to store API keys, configuration values, or other secrets that should not be hardcoded in node configurations.
+
+    Define environment variables in **Workflow Settings → Environment Variables**. Reference them as `{{env.variable_name}}`.
+
+    <Warning>Environment variable values are stored in the Dify database. Do not store secrets that require rotation in environment variables if you are using a shared Dify instance.</Warning>
+  </Tab>
+  <Tab title="Conversation variables">
+    Conversation variables persist across turns in a chatflow. They are scoped to a single conversation session and can be read and written by workflow nodes.
+
+    Use a **Variable assigner** node to write a value to a conversation variable. Read conversation variables using the standard `{{variable_name}}` reference.
+  </Tab>
+  <Tab title="Node output variables">
+    Every node exposes its outputs as variables. Reference them downstream using `{{node_title.output_name}}`. Use the variable picker (type `/` in any input field) to browse available variables.
+  </Tab>
+</Tabs>
+
+## Testing and debugging
+
+The workflow editor includes a built-in test runner.
+
+**Single-step execution:** Click the run icon (▶) on any node to execute that node in isolation. The panel shows the exact inputs the node received and the raw output it produced. This is useful for debugging LLM prompts or verifying HTTP response parsing.
+
+**Full workflow run:** Click the **Run** button in the toolbar to open the test panel. Enter values for all start node inputs and click **Run**. The canvas highlights each node as it executes and displays a pass/fail indicator. Click any node in the run history to inspect its inputs and outputs.
+
+<Note>Test runs do not affect production conversation history or usage quotas in the same way live traffic does. They are logged separately under **Workflow runs** in the monitoring panel.</Note>
+
+## Publishing workflow apps
+
+When you are satisfied with a workflow, click **Publish** in the top-right corner. Publishing creates a versioned snapshot of the graph. The published version is what end users and the API call.
+
+After publishing, you can access the workflow through:
+
+- **Web app:** Dify generates a hosted URL you can share directly.
+- **Embedded widget:** Copy the iframe or script snippet from **Access API → Embedded**.
+- **REST API:** Call the workflow programmatically using the app's API key. See the API reference for request and response schemas.
+
+<Tip>Publish a new version any time you update the workflow. The previous published version remains active until the new publish completes, so there is no downtime.</Tip>

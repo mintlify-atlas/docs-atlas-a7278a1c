@@ -1,0 +1,168 @@
+---
+title: 'Agent'
+description: 'Build an autonomous AI agent that calls tools iteratively to complete tasks. Configure tool access, agent strategy, iteration limits, and memory.'
+---
+
+An Agent application gives an LLM the ability to use tools autonomously. Rather than generating a single response, the model reasons about the task, decides which tool to call, inspects the result, and iterates until it reaches a final answer or hits the iteration limit.
+
+The underlying app mode is `agent-chat`. Agents maintain conversation history the same way as a Chatbot. The API endpoint is `POST /chat-messages`.
+
+## Agent strategies
+
+Dify supports two agent reasoning strategies. The strategy is selected automatically based on model capability, or you can set it explicitly.
+
+<Tabs>
+  <Tab title="Function Calling">
+    The model uses the provider's native tool/function calling API. The LLM selects a tool and generates structured arguments in a single step, without reasoning text between calls.
+
+    **Best for:** Models with native function calling support (GPT-4o, Claude 3+, Gemini 1.5+). Produces cleaner intermediate steps and is generally faster and more reliable than ReAct.
+
+    When the configured model supports both `TOOL_CALL` and `MULTI_TOOL_CALL` features (as detected from the model schema), Dify automatically uses Function Calling regardless of the configured strategy.
+  </Tab>
+  <Tab title="ReAct (Chain-of-Thought)">
+    The model reasons step by step using a Thought → Action → Observation loop. Each iteration the model produces a `Thought` explaining its reasoning, an `Action` naming the tool and its input, and then receives an `Observation` with the tool output.
+
+    **Best for:** Models without native function calling support, or when you need the reasoning trace visible in the response. Works with both chat-mode and completion-mode LLMs.
+
+    - Chat-mode LLMs use `CotChatAgentRunner`.
+    - Completion-mode LLMs use `CotCompletionAgentRunner`.
+  </Tab>
+</Tabs>
+
+## Tool configuration
+
+Attach tools to give the agent capabilities beyond text generation.
+
+<AccordionGroup>
+  <Accordion title="Built-in tools">
+    Dify includes 50+ pre-integrated tools. Browse them in **Tools → Built-in tools** when editing the agent. Categories include:
+
+    - **Search** — Google Search, Bing Search, Wikipedia, DuckDuckGo
+    - **Productivity** — Google Drive, Notion, Slack
+    - **Image generation** — DALL·E 3, Stable Diffusion
+    - **Science and data** — WolframAlpha, weather APIs
+    - **Utilities** — calculator, current time, URL reader
+
+    Select a tool and, where required, enter API credentials. Credentials are stored securely at the workspace level.
+  </Accordion>
+  <Accordion title="Custom API tools">
+    Define a custom tool from an OpenAPI/Swagger specification or by entering individual endpoint details.
+
+    <Steps>
+      <Step title="Create a custom tool">
+        Navigate to **Tools → Custom tools** and click **Create tool**.
+      </Step>
+      <Step title="Import the schema">
+        Paste an OpenAPI YAML or JSON specification, or fill in the endpoint URL, method, parameters, and authentication manually.
+      </Step>
+      <Step title="Attach to the agent">
+        Return to the agent editor and add the custom tool from **Tools → Custom tools**.
+      </Step>
+    </Steps>
+  </Accordion>
+  <Accordion title="MCP tools">
+    Model Context Protocol (MCP) tools connect the agent to external MCP servers. Configure MCP server connections in **Plugins → MCP Integration**, then select them from the tool picker in the agent editor.
+  </Accordion>
+  <Accordion title="Workflow tools">
+    Published Workflow apps can be exposed as tools. The agent calls the workflow as a single tool invocation, passing inputs and receiving the workflow output. This allows you to compose complex multi-step logic as a reusable tool.
+  </Accordion>
+</AccordionGroup>
+
+## System prompt
+
+The system prompt defines the agent's role, goal, and any constraints on its behaviour. Write it in the **Prompt** editor.
+
+Best practices:
+
+- State the agent's primary goal clearly at the start.
+- List any tools the agent should prefer or avoid.
+- Specify output format requirements if the downstream consumer expects structured text.
+- Define what the agent should do when it cannot complete the task.
+
+Input variables defined in **User Input Form** are available in the system prompt via `{{variable_name}}`.
+
+## Iteration limits and safety
+
+The `max_iteration` field (default: 10) caps how many tool calls the agent can make in a single run. This prevents runaway loops and limits cost in cases where the agent gets stuck.
+
+Configure the limit in **Advanced settings → Max iterations**.
+
+<Warning>Setting a very high iteration limit increases the risk of excessive token usage and cost. Start with the default (10) and increase only if your use case genuinely requires more tool calls per task.</Warning>
+
+Additional safety controls:
+
+- **Sensitive word avoidance** — configure content moderation in **Moderation** to block certain inputs or outputs.
+- **Annotation reply** — define exact responses for specific queries that bypass LLM generation entirely.
+
+## File input support
+
+Enable file uploads in **Features → File upload** to allow users to attach documents or images. The agent can then use tools to process or reason about the uploaded files.
+
+Files are passed in the `files` array of the API request. Supported transfer methods:
+
+- `remote_url` — provide a publicly accessible URL.
+- `local_file` — upload the file first using `POST /files/upload`, then reference the returned `upload_file_id`.
+
+## Memory and context
+
+Agents maintain conversation history using the same window-based or summary-based memory as Chatbot applications. Each turn appends the user message, tool call trace, and final answer to the conversation history.
+
+Conversation variables (available in advanced chat / workflow-backed agents) persist across turns and can be read and written programmatically via `GET /conversations/{id}/variables`.
+
+## API integration
+
+The Agent API is identical to the Chatbot API — both use `POST /chat-messages`.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Search for the latest news about LLM benchmarks and summarize the top 3 results",
+    "inputs": {},
+    "response_mode": "streaming",
+    "conversation_id": "",
+    "user": "user-123"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.dify.ai/v1/chat-messages",
+    headers={"Authorization": "Bearer app-your-api-key"},
+    json={
+        "query": "Search for the latest news about LLM benchmarks and summarize the top 3 results",
+        "inputs": {},
+        "response_mode": "streaming",
+        "conversation_id": "",
+        "user": "user-123",
+    },
+    stream=True,
+)
+
+for line in response.iter_lines():
+    if line:
+        print(line.decode())
+```
+
+</CodeGroup>
+
+### Streaming events for agents
+
+Agent responses include additional streaming event types beyond the standard Chatbot events:
+
+| Event | Description |
+|---|---|
+| `agent_thought` | A reasoning step. Contains `thought`, `tool`, `tool_input`, and `observation` fields |
+| `agent_message` | A chunk of the final answer text |
+| `message_end` | End of the response. Contains token usage and latency |
+| `message` | Standard message chunk (non-agent parts) |
+| `error` | An error occurred |
+
+Parsing `agent_thought` events lets you display the agent's tool calls and observations to users in real time, making the reasoning process transparent.
+
+<Tip>For latency-sensitive use cases where you only need the final answer, filter out `agent_thought` events and display only `agent_message` chunks.</Tip>

@@ -1,0 +1,134 @@
+---
+title: 'Embedding models'
+description: 'Choose and configure an embedding model for your Dify knowledge base, understand how text is converted to vectors, and learn the cost and quality trade-offs between available providers.'
+keywords: ['embedding model', 'text embedding', 'vector', 'semantic search', 'OpenAI embeddings', 'Cohere', 'Ollama']
+---
+
+An embedding model converts text into a dense numeric vector — a point in a high-dimensional space where semantically similar texts land near each other. Dify uses these vectors to power semantic search: the query is embedded with the same model, and the nearest segment vectors are retrieved.
+
+## How embedding models fit into the pipeline
+
+1. **At index time** — each text segment produced by the splitter is passed to the embedding model. The resulting vector is stored alongside the segment in the vector database.
+2. **At query time** — the user's query is embedded with the same model. A nearest-neighbour search over the stored vectors returns the most semantically relevant segments.
+3. **At rerank time** — when weighted-score reranking is used, the query vector is compared against each candidate segment vector to compute cosine similarity scores.
+
+All three steps must use the same model. Changing the embedding model on a dataset invalidates the existing vectors and requires full re-indexing.
+
+## Configuring an embedding model
+
+Select the embedding model when creating a high-quality dataset:
+
+<Steps>
+  <Step title="Open Model Provider settings">
+    Go to **Settings → Model Provider** and add credentials for the provider you want to use (e.g., your OpenAI API key).
+  </Step>
+  <Step title="Create a dataset">
+    In the **Knowledge** section, click **Create dataset** and choose **High quality** as the indexing technique.
+  </Step>
+  <Step title="Select the embedding model">
+    In the embedding model dropdown, choose the provider and model. Only models with active credentials are shown.
+  </Step>
+  <Step title="Save and start importing">
+    Click **Save**. From this point on, every document added to this dataset is embedded with the selected model.
+  </Step>
+</Steps>
+
+You can also specify the embedding model when creating a dataset via the API:
+
+```bash
+curl -X POST 'https://api.dify.ai/v1/datasets' \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Product docs",
+    "indexing_technique": "high_quality",
+    "embedding_model_provider": "openai",
+    "embedding_model": "text-embedding-3-small"
+  }'
+```
+
+## Supported providers and models
+
+### OpenAI
+
+| Model | Dimensions | Notes |
+|-------|-----------|-------|
+| `text-embedding-3-small` | 1536 | Best price-to-quality ratio; default recommendation. |
+| `text-embedding-3-large` | 3072 | Higher accuracy; roughly 5× the cost of `small`. |
+| `text-embedding-ada-002` | 1536 | Legacy model; still widely used. |
+
+### Azure OpenAI
+
+Deployments of OpenAI embedding models hosted on Azure. Configure with your Azure endpoint, API key, and deployment name in **Settings → Model Provider → Azure OpenAI**.
+
+### Cohere
+
+| Model | Notes |
+|-------|-------|
+| `embed-english-v3.0` | English-optimised; supports `search_document` and `search_query` input types. |
+| `embed-multilingual-v3.0` | 100+ languages. |
+| `embed-english-light-v3.0` | Smaller, faster English model. |
+
+### Local models via Ollama
+
+Ollama lets you run embedding models entirely on your own infrastructure. After setting up Ollama and adding it as a provider in Dify, any Ollama-served model that supports embeddings can be selected:
+
+```bash
+# Pull a model in Ollama
+ollama pull nomic-embed-text
+```
+
+Then add Ollama as a model provider in Dify with your Ollama API base URL (e.g., `http://localhost:11434`).
+
+### Other providers
+
+Dify's model provider framework supports Hugging Face Inference API, Jina AI embeddings, Mistral, Voyage AI, and any provider that implements the text embedding interface. Add credentials in **Settings → Model Provider**.
+
+## Changing the embedding model
+
+<Warning>
+Changing the embedding model of an existing dataset requires re-indexing every document. All current vectors are invalidated and must be recomputed. This consumes embedding tokens proportional to the total word count of the dataset and may take significant time for large datasets.
+</Warning>
+
+To change the embedding model:
+
+1. Open the dataset and go to **Settings**.
+2. Select a new **Embedding model**.
+3. Confirm the re-indexing prompt. Dify will queue all documents for reprocessing.
+
+During re-indexing, existing segments remain queryable using the old vectors until processing completes, at which point the new vectors replace them atomically per document.
+
+## Cost considerations
+
+Embedding costs are charged per token by your model provider. Costs arise at two points:
+
+- **Index time** — once per segment when a document is first uploaded or re-indexed.
+- **Query time** — once per user query (embedding the query text, not the documents).
+
+Query-time costs are typically negligible (a single short string) compared to index-time costs. The main cost driver is the total token count across all documents in your dataset.
+
+**Estimating index cost:**
+
+```
+approximate_cost = (total_words / 0.75) × price_per_1k_tokens / 1000
+```
+
+For `text-embedding-3-small` at $0.02 per million tokens, a 1 million-word dataset costs roughly $0.027 to index.
+
+## Choosing an embedding model
+
+| Consideration | Recommendation |
+|---------------|---------------|
+| **General English content** | `text-embedding-3-small` — good accuracy, lowest cost among OpenAI models. |
+| **Multilingual content** | `cohere/embed-multilingual-v3.0` or a multilingual Ollama model. |
+| **Air-gapped / on-premises** | Ollama with a locally served model such as `nomic-embed-text` or `mxbai-embed-large`. |
+| **Highest semantic accuracy** | `text-embedding-3-large` or `cohere/embed-english-v3.0`. |
+| **Cost is the primary constraint** | Economy indexing mode (no embedding model required — uses keyword search only). |
+
+<Tip>
+The embedding model you choose at dataset creation affects the entire lifecycle of that dataset. If you are uncertain, start with `text-embedding-3-small`. Migrating to a larger model later is straightforward but will re-incur indexing costs.
+</Tip>
+
+## Embedding availability
+
+The Dify API response for a dataset includes an `embedding_available` field. This is `true` when the dataset's configured embedding model is still active in your workspace, and `false` when the provider credentials have been removed or the model is no longer accessible. A dataset with `embedding_available: false` can still serve existing queries using previously stored vectors, but adding new documents will fail until the model credentials are restored.

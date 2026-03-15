@@ -1,0 +1,108 @@
+---
+title: Logs and annotations
+description: Access conversation logs, review user feedback, and annotate conversations with expected answers.
+---
+
+The **Logs & Ann.** section of every Dify application records every conversation your users have. You can review logs to understand how the application is performing, collect user feedback signals, and create an annotation dataset for improving quality.
+
+## Accessing logs
+
+<Steps>
+  <Step title="Open your application">
+    From the Dify dashboard, click the application you want to inspect.
+  </Step>
+  <Step title="Navigate to Monitor">
+    Click **Monitor** in the left navigation bar.
+  </Step>
+  <Step title="Select Logs & Ann.">
+    Click the **Logs & Ann.** tab to see the conversation log list.
+  </Step>
+</Steps>
+
+## Filtering logs
+
+The log list supports several filters to help you find relevant conversations:
+
+| Filter | Description |
+|--------|-------------|
+| Time range | Show conversations from the last hour, 24 hours, 7 days, 30 days, or a custom range. |
+| User | Filter by end user ID to trace a specific user's sessions. |
+| Message content | Search for conversations containing a specific keyword. |
+| Feedback | Show only conversations with thumbs-up or thumbs-down feedback. |
+
+## Viewing a conversation
+
+Click any row in the log list to open the full conversation history for that session. You can see:
+
+- Every message and model reply in order
+- The user feedback signal (thumbs up or down), if provided
+- Token usage per message
+- Model latency for each response
+- The model and prompt configuration active at the time
+
+## User feedback
+
+When your application has user feedback enabled, end users can rate each message with a thumbs-up or thumbs-down signal. These signals appear in the log list and can be used to filter for poor-quality responses.
+
+<Tip>
+Filter logs by thumbs-down feedback to quickly find the highest-priority conversations to annotate.
+</Tip>
+
+## Annotations
+
+Annotations let you attach an expected (correct) answer to a specific user question within a conversation. Annotations serve two purposes:
+
+1. **Dataset creation**: The annotated question–answer pairs can be exported and used as a fine-tuning or evaluation dataset.
+2. **Annotation reply mode**: When enabled, Dify checks incoming messages against your annotations. If an exact match is found, the annotated answer is returned directly instead of calling the model.
+
+### Adding an annotation
+
+<Steps>
+  <Step title="Open a conversation">
+    Click a log entry to view the full conversation.
+  </Step>
+  <Step title="Find the message to annotate">
+    Locate the user message where the model gave an incorrect or suboptimal answer.
+  </Step>
+  <Step title="Click the annotation icon">
+    Click the pencil/annotation icon next to the model response.
+  </Step>
+  <Step title="Enter the expected answer">
+    Type the correct answer you would like the model to return for this question.
+  </Step>
+  <Step title="Save">
+    Click **Save**. The annotation is now part of your annotation dataset.
+  </Step>
+</Steps>
+
+### Annotation reply mode
+
+Annotation reply mode intercepts incoming user messages and checks them against your annotation dataset using semantic similarity. When a match exceeds the configured threshold, the stored annotation answer is returned directly—no model call is made.
+
+To enable annotation reply mode:
+
+1. Go to **Monitor → Logs & Ann.**
+2. Click **Annotation Reply** in the upper right.
+3. Toggle **Enable** and set a similarity score threshold (0–1). A threshold of `0.9` requires near-exact phrasing matches; `0.7` is more permissive.
+4. Click **Save**.
+
+<Warning>
+Annotation reply mode adds a vector similarity lookup to every request. This increases latency slightly and may incur additional embedding costs depending on your model provider.
+</Warning>
+
+### Managing annotations
+
+- View all annotations in the **Annotations** sub-tab under Logs & Ann.
+- Edit or delete individual annotations at any time.
+- Import annotations in bulk by uploading a CSV file with `question` and `answer` columns.
+- Export all annotations as a CSV for use in external evaluation pipelines.
+
+## Exporting logs
+
+To export conversation logs:
+
+1. Apply any filters you want (time range, feedback, etc.).
+2. Click the **Export** button in the upper-right corner.
+3. Download the CSV file.
+
+The exported CSV includes conversation ID, user ID, message content, model response, token counts, latency, and feedback signals.

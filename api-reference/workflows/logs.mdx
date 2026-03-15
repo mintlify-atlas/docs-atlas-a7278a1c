@@ -1,0 +1,111 @@
+---
+title: Workflow Logs
+description: Retrieve paginated execution logs for a Workflow application.
+---
+
+## Endpoint
+
+```
+GET /workflows/logs
+```
+
+## Query Parameters
+
+<ParamField query="keyword" type="string">
+  Filter logs by keyword (searches run IDs and related text).
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by execution status. One of: `succeeded`, `failed`, `stopped`.
+</ParamField>
+
+<ParamField query="created_at__before" type="string">
+  ISO 8601 datetime string. Only return logs created before this time.
+</ParamField>
+
+<ParamField query="created_at__after" type="string">
+  ISO 8601 datetime string. Only return logs created after this time.
+</ParamField>
+
+<ParamField query="created_by_end_user_session_id" type="string">
+  Filter by end user session ID.
+</ParamField>
+
+<ParamField query="created_by_account" type="string">
+  Filter by account that triggered the run.
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+  Page number. Must be between `1` and `99999`.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of logs per page. Must be between `1` and `100`.
+</ParamField>
+
+## Response
+
+<ResponseField name="page" type="integer">
+  Current page number.
+</ResponseField>
+
+<ResponseField name="limit" type="integer">
+  Number of items per page.
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of matching log entries.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more pages available.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of workflow run log entries.
+
+  <Expandable title="Log entry object">
+    <ResponseField name="id" type="string">Workflow run ID.</ResponseField>
+    <ResponseField name="workflow_id" type="string">Workflow definition ID.</ResponseField>
+    <ResponseField name="status" type="string">Execution status.</ResponseField>
+    <ResponseField name="inputs" type="object">Input values used for the run.</ResponseField>
+    <ResponseField name="outputs" type="object">Output values produced by the run.</ResponseField>
+    <ResponseField name="error" type="string">Error message if the run failed.</ResponseField>
+    <ResponseField name="elapsed_time" type="number">Total execution time in seconds.</ResponseField>
+    <ResponseField name="total_tokens" type="integer">Total tokens consumed.</ResponseField>
+    <ResponseField name="total_steps" type="integer">Number of steps executed.</ResponseField>
+    <ResponseField name="created_at" type="integer">Unix timestamp when the run started.</ResponseField>
+    <ResponseField name="finished_at" type="integer">Unix timestamp when the run finished.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl 'https://api.dify.ai/v1/workflows/logs?status=succeeded&page=1&limit=20' \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "page": 1,
+  "limit": 20,
+  "total": 3,
+  "has_more": false,
+  "data": [
+    {
+      "id": "djflajgkldjgd",
+      "workflow_id": "19eff3db-6c23-4ffe-b981-1234abcd",
+      "status": "succeeded",
+      "inputs": {"topic": "climate change"},
+      "outputs": {"summary": "Climate change refers to..."},
+      "error": null,
+      "elapsed_time": 3.42,
+      "total_tokens": 512,
+      "total_steps": 5,
+      "created_at": 1705395332,
+      "finished_at": 1705395336
+    }
+  ]
+}
+```

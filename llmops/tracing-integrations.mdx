@@ -1,0 +1,179 @@
+---
+title: Tracing integrations
+description: Send detailed LLM trace data to third-party observability platforms including Langfuse, Arize Phoenix, Opik, LangSmith, MLflow, and Weave.
+---
+
+Dify can export structured trace data to external observability platforms. Tracing gives you a detailed, per-request view of LLM inputs and outputs, latency, token counts, tool calls, and retrieval steps—beyond what the built-in monitoring dashboard provides.
+
+## Supported providers
+
+The following tracing providers are supported. Each integration is configured per application.
+
+<CardGroup cols={2}>
+  <Card title="Langfuse" icon="activity">
+    Open-source LLM observability platform. Supports traces, scores, and datasets. Self-hostable.
+  </Card>
+  <Card title="Arize Phoenix" icon="activity">
+    Model monitoring and evaluation from Arize AI. Available as cloud (Arize) or open-source (Phoenix).
+  </Card>
+  <Card title="Opik (Comet ML)" icon="activity">
+    Experiment tracking and LLM evaluation from Comet ML. Available as cloud or self-hosted.
+  </Card>
+  <Card title="LangSmith" icon="activity">
+    Tracing and evaluation from LangChain. Hosted service only.
+  </Card>
+  <Card title="MLflow" icon="activity">
+    Open-source ML lifecycle platform with LLM tracing support.
+  </Card>
+  <Card title="Databricks" icon="activity">
+    Databricks-managed MLflow for organizations running on Databricks.
+  </Card>
+  <Card title="Weights & Biases Weave" icon="activity">
+    Experiment tracking and tracing from Weights & Biases.
+  </Card>
+  <Card title="Aliyun" icon="activity">
+    Alibaba Cloud Application Real-Time Monitoring Service (ARMS).
+  </Card>
+  <Card title="Tencent APM" icon="activity">
+    Tencent Cloud Application Performance Management.
+  </Card>
+</CardGroup>
+
+## What is traced
+
+For every application request, Dify sends the following data to the configured tracing provider:
+
+| Trace data | Description |
+|------------|-------------|
+| Conversation / message ID | Dify-internal identifiers for correlating traces back to logs. |
+| LLM inputs | The full prompt sent to the model, including system prompt and context. |
+| LLM outputs | The model's complete response. |
+| Token counts | Input tokens, output tokens, and total tokens per LLM call. |
+| Latency | Time from request start to first token, and total generation time. |
+| Tool calls | Name, inputs, and outputs of any tool invoked during an agent run. |
+| Dataset retrieval | Documents retrieved from knowledge bases, including scores. |
+| Moderation | Whether the moderation check flagged the message and the action taken. |
+| Workflow steps | Per-node trace data for workflow applications, including inputs/outputs of each node. |
+| Errors | Error messages and stack traces when a request fails. |
+
+## Enabling tracing
+
+<Steps>
+  <Step title="Open application settings">
+    From the Dify dashboard, open your application and click **Settings** in the left navigation.
+  </Step>
+  <Step title="Go to Monitoring">
+    Click the **Monitoring** tab within application settings.
+  </Step>
+  <Step title="Configure a provider">
+    Click **Configure** next to the provider you want to enable. Enter the required credentials (see provider-specific sections below).
+  </Step>
+  <Step title="Enable tracing">
+    Toggle the provider to **Enabled** and click **Save**. Traces will be sent for all subsequent requests.
+  </Step>
+</Steps>
+
+<Warning>
+Only one tracing provider can be active per application at a time. Enabling a new provider disables the previous one.
+</Warning>
+
+## Provider configuration
+
+<AccordionGroup>
+  <Accordion title="Langfuse">
+    Langfuse requires a project-level public key and secret key.
+
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | Public key | Langfuse project public key. | — |
+    | Secret key | Langfuse project secret key. | — |
+    | Host | Langfuse API host. Use your self-hosted URL if applicable. | `https://api.langfuse.com` |
+
+    Get your keys from the Langfuse project settings page.
+  </Accordion>
+
+  <Accordion title="Arize / Arize Phoenix">
+    Arize (cloud) and Phoenix (self-hosted open-source) share the same trace implementation in Dify.
+
+    **Arize cloud:**
+
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | API key | Arize API key. | — |
+    | Space ID | Arize space ID. | — |
+    | Project | Project name to group traces under. | `default` |
+    | Endpoint | Arize OTLP endpoint. | `https://otlp.arize.com` |
+
+    **Phoenix (self-hosted):**
+
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | API key | Phoenix API key (if auth is enabled). | — |
+    | Project | Project name. | `default` |
+    | Endpoint | Phoenix server URL. | `https://app.phoenix.arize.com` |
+  </Accordion>
+
+  <Accordion title="Opik (Comet ML)">
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | API key | Comet ML API key. Leave empty for local/self-hosted. | — |
+    | Project | Opik project name. | `Default Project` |
+    | Workspace | Comet ML workspace name. | — |
+    | URL | Opik API endpoint. | `https://www.comet.com/opik/api/` |
+
+    For self-hosted Opik, set URL to your server's API endpoint (must end with `/api/`).
+  </Accordion>
+
+  <Accordion title="LangSmith">
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | API key | LangSmith API key. | — |
+    | Project | LangSmith project name. | — |
+    | Endpoint | LangSmith API endpoint. HTTPS only. | `https://api.smith.langchain.com` |
+  </Accordion>
+
+  <Accordion title="MLflow">
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | Tracking URI | MLflow tracking server URL. | `http://localhost:5000` |
+    | Experiment ID | MLflow experiment ID. | `0` |
+    | Username | Basic auth username (if configured). | — |
+    | Password | Basic auth password (if configured). | — |
+
+    <Note>Do not use a `databricks://` tracking URI with MLflow config. Use the Databricks provider instead.</Note>
+  </Accordion>
+
+  <Accordion title="Databricks">
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | Host | Databricks workspace URL. | — |
+    | Experiment ID | MLflow experiment ID in Databricks. | — |
+    | Client ID | OAuth client ID (if using OAuth M2M). | — |
+    | Client secret | OAuth client secret. | — |
+    | Personal access token | PAT (alternative to OAuth). | — |
+  </Accordion>
+
+  <Accordion title="Weights & Biases Weave">
+    | Field | Description | Default |
+    |-------|-------------|---------|
+    | API key | W&B API key. | — |
+    | Project | W&B project name. | — |
+    | Entity | W&B entity (team or username). | — |
+    | Endpoint | Weave trace endpoint. HTTPS only. | `https://trace.wandb.ai` |
+    | Host | W&B server host (self-hosted only). | — |
+  </Accordion>
+</AccordionGroup>
+
+## How tracing works internally
+
+When tracing is enabled for an application, Dify enqueues trace tasks asynchronously via a `TraceQueueManager`. Tasks are batched (default batch size: 100, flush interval: 5 seconds) and dispatched to Celery workers, which serialize the trace data and send it to the configured provider. This means tracing has minimal impact on request latency.
+
+Trace data is serialized per event type:
+
+- `MESSAGE_TRACE` — a complete chat message round-trip
+- `WORKFLOW_TRACE` — a workflow execution with all node results
+- `TOOL_TRACE` — a single agent tool invocation
+- `DATASET_RETRIEVAL_TRACE` — a knowledge base retrieval step
+- `MODERATION_TRACE` — a content moderation check
+- `SUGGESTED_QUESTION_TRACE` — suggested follow-up question generation
+- `GENERATE_NAME_TRACE` — conversation title generation

@@ -1,0 +1,145 @@
+---
+title: Custom Model Providers
+description: Add any OpenAI-compatible model endpoint to Dify as a custom provider, including vLLM, LM Studio, LocalAI, and Xinference.
+---
+
+## What Is an OpenAI-Compatible Endpoint?
+
+Many local inference servers and third-party APIs implement the same REST interface as OpenAI. At minimum they expose:
+
+- `POST /v1/chat/completions` — chat inference
+- `GET /v1/models` — list available models
+
+Dify uses this contract to talk to any server that implements it, without requiring a purpose-built integration. Examples include vLLM, LM Studio, LocalAI, Xinference, LiteLLM, and any proxy that rewrites requests into the OpenAI format.
+
+---
+
+## Adding a Custom Provider
+
+<Steps>
+  <Step title="Open Model Provider settings">
+    Go to **Settings → Model Provider**. Scroll to the bottom of the provider list and click **Add Custom Provider** (or the `+` button in the custom models section).
+  </Step>
+  <Step title="Enter provider details">
+    Fill in the form:
+
+    | Field | Description | Example |
+    |-------|-------------|----------|
+    | **Provider Name** | A label shown in the UI | `My vLLM Server` |
+    | **Base URL** | Root URL of the OpenAI-compatible API | `http://localhost:8000/v1` |
+    | **API Key** | Leave blank if the server does not require auth | `sk-...` or empty |
+  </Step>
+  <Step title="Add a model">
+    Click **Add Model** to register at least one model. Each model requires:
+
+    | Field | Description |
+    |-------|-------------|
+    | **Model Name** | The exact model identifier sent in `model` field of requests |
+    | **Model Type** | LLM, Text Embedding, etc. |
+    | **Context Window** | Maximum token count supported by the model |
+    | **Max Tokens** | Upper bound on tokens to generate (can be same as context window) |
+    | **Vision Support** | Enable if the model accepts image inputs |
+    | **Function Calling** | Enable if the model supports tool-use / function-calling |
+  </Step>
+  <Step title="Test the connection">
+    Click **Test** next to the model entry. Dify sends a minimal chat request and reports success or the error message.
+  </Step>
+  <Step title="Save">
+    Click **Save**. The provider and its models are now available across all apps in the workspace.
+  </Step>
+</Steps>
+
+---
+
+## Common Endpoint Examples
+
+<Tabs>
+  <Tab title="vLLM">
+    Start vLLM with OpenAI-compatible mode:
+
+    ```bash
+    python -m vllm.entrypoints.openai.api_server \
+      --model meta-llama/Meta-Llama-3-8B-Instruct \
+      --port 8000
+    ```
+
+    In Dify:
+    - **Base URL:** `http://localhost:8000/v1`
+    - **API Key:** any non-empty string (vLLM ignores it by default)
+    - **Model Name:** `meta-llama/Meta-Llama-3-8B-Instruct`
+  </Tab>
+
+  <Tab title="LM Studio">
+    Start the LM Studio local server from within the app (press the server icon). By default it listens on port 1234.
+
+    In Dify:
+    - **Base URL:** `http://localhost:1234/v1`
+    - **API Key:** leave blank
+    - **Model Name:** the model identifier shown in LM Studio, e.g. `lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF`
+
+    <Tip>
+    For Docker-based Dify, use `http://host.docker.internal:1234/v1` instead of `localhost`.
+    </Tip>
+  </Tab>
+
+  <Tab title="Ollama (OpenAI-compatible)">
+    Ollama has a native Dify provider, but you can also add it as a custom OpenAI-compatible provider to access models that are not yet listed in the native integration:
+
+    - **Base URL:** `http://localhost:11434/v1`
+    - **API Key:** `ollama` (any non-empty string)
+    - **Model Name:** the exact name returned by `ollama list`, e.g. `qwen2.5:14b`
+  </Tab>
+
+  <Tab title="Xinference">
+    Launch a model in Xinference and note its `model_uid`:
+
+    ```bash
+    xinference launch \
+      --model-name qwen2-instruct \
+      --model-format pytorch \
+      --size-in-billions 7
+    ```
+
+    In Dify:
+    - **Base URL:** `http://localhost:9997/v1`
+    - **API Key:** leave blank
+    - **Model Name:** the `model_uid` returned by Xinference (e.g. `qwen2-instruct`)
+
+    Xinference also supports Text Embedding and Rerank models via the same OpenAI-compatible endpoint.
+  </Tab>
+
+  <Tab title="LocalAI">
+    LocalAI serves models at:
+    - **Base URL:** `http://localhost:8080/v1`
+    - **API Key:** leave blank or use `localai`
+    - **Model Name:** the filename without extension from your models directory, e.g. `mistral-7b-openorca.Q4_K_M`
+  </Tab>
+</Tabs>
+
+---
+
+## Using Custom Models in Applications
+
+Once saved, custom models appear in all model selection dropdowns across the workspace — in app settings, workflow LLM nodes, agent configuration, and the system model defaults panel.
+
+They behave identically to built-in provider models:
+
+- They can be set as the workspace inference default.
+- They support load balancing if you add multiple credentials for the same provider.
+- They can be selected per-app in the app's model settings.
+
+<Warning>
+Custom provider endpoints are not validated beyond a basic connectivity check. If the endpoint returns malformed responses, errors will surface at invocation time. Use the **Test** button during setup to catch issues early.
+</Warning>
+
+---
+
+## Editing and Removing Custom Providers
+
+To update the base URL, API key, or model list for a custom provider:
+
+1. Go to **Settings → Model Provider**.
+2. Find your custom provider and click the **edit** (pencil) icon.
+3. Make changes and click **Save**.
+
+To remove a custom provider entirely, click the **delete** icon. This will also remove the provider from any applications that referenced it — those apps will fall back to the workspace default model.

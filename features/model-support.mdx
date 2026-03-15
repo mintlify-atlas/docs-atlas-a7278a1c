@@ -1,0 +1,136 @@
+---
+title: 'Model support'
+description: 'Connect to hundreds of LLMs, embedding models, rerankers, TTS, STT, and image generation models from dozens of providers. Configure built-in providers or add custom OpenAI-compatible endpoints.'
+---
+
+Dify abstracts model access through the `ModelManager` and `ModelInstance` classes in `core/model_manager.py`. Every model interaction — text generation, embedding, reranking, TTS, STT, moderation, and image generation — routes through a unified interface that handles credential management, load balancing, and retry logic.
+
+## Supported model types
+
+| Type | Class | Description |
+|---|---|---|
+| **LLM** | `LargeLanguageModel` | Text and chat generation. The primary model type used in apps and workflows. |
+| **Text embedding** | `TextEmbeddingModel` | Encode text into dense vectors for knowledge base indexing and semantic search. |
+| **Rerank** | `RerankModel` | Re-score retrieved chunks by relevance. Used in the RAG pipeline's reranking stage. |
+| **TTS** | `TTSModel` | Convert text to speech audio. Used in chatbot voice output. |
+| **STT** | `Speech2TextModel` | Transcribe audio to text. Used for voice input in chatbot apps. |
+| **Image generation** | *(via tool)* | Generate images from text prompts. Exposed as built-in tools (DALL-E, Stable Diffusion). |
+| **Moderation** | `ModerationModel` | Classify whether content violates usage policies. |
+
+## Provider categories
+
+<CardGroup cols={2}>
+  <Card title="OpenAI" icon="circle">
+    GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo, o1, o3, and OpenAI embedding and TTS models. Supports streaming, function calling, and vision.
+  </Card>
+  <Card title="Anthropic" icon="circle">
+    Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku, and the full Claude 3 family. Supports extended context windows and vision.
+  </Card>
+  <Card title="Azure OpenAI" icon="circle">
+    OpenAI models deployed on Azure. Requires an Azure OpenAI resource endpoint and API key. Supports the same models as direct OpenAI with enterprise compliance controls.
+  </Card>
+  <Card title="Google" icon="circle">
+    Gemini 1.5 Pro, Gemini 1.5 Flash, Gemini 1.0 Pro. Supports multimodal input (text + images + video). Accessed via Vertex AI or the Gemini API.
+  </Card>
+  <Card title="Mistral" icon="circle">
+    Mistral Large, Mistral Medium, Mistral Small, Mixtral 8x7B, and Codestral. Accessed via the Mistral API.
+  </Card>
+  <Card title="Meta Llama (via Ollama)" icon="circle">
+    Llama 3, Llama 2, Code Llama, and other community models running locally via Ollama. Requires a running Ollama server accessible from your Dify instance.
+  </Card>
+  <Card title="Hugging Face" icon="circle">
+    Models hosted on Hugging Face Inference Endpoints. Connect using your HF API token and endpoint URL.
+  </Card>
+  <Card title="Cohere" icon="circle">
+    Command R+, Command R, and Cohere's embedding and rerank models. Cohere Rerank is a popular choice for the RAG pipeline reranking stage.
+  </Card>
+  <Card title="Moonshot / DeepSeek / Zhipu" icon="circle">
+    Chinese-market LLM providers. Each requires its own API key configured in the provider settings.
+  </Card>
+  <Card title="OpenAI-compatible" icon="plug">
+    Any provider or self-hosted model that exposes an OpenAI-compatible API (`/v1/chat/completions`). See the custom endpoint section below.
+  </Card>
+</CardGroup>
+
+## Adding a model provider
+
+<Steps>
+  <Step title="Open Model Provider settings">
+    Navigate to **Settings** (gear icon) → **Model Provider**. You see a list of all available providers.
+  </Step>
+  <Step title="Select a provider">
+    Click the provider you want to configure (e.g., **OpenAI**). A configuration panel opens.
+  </Step>
+  <Step title="Enter credentials">
+    Paste your API key (and any other required fields such as Organization ID or base URL) into the form. Credentials are stored encrypted in the Dify database.
+  </Step>
+  <Step title="Save and verify">
+    Click **Save**. Dify will attempt a lightweight credential validation request. If the credentials are valid, the provider is marked active and its models become available in app and workflow configurations.
+  </Step>
+  <Step title="Set a default model (optional)">
+    Click **Set as default** next to any model to make it the fallback when an app or workflow does not specify a model explicitly. The `ModelManager.get_default_model_instance` method uses this setting.
+  </Step>
+</Steps>
+
+## Built-in vs. custom providers
+
+**Built-in providers** are first-class integrations maintained by the Dify team. They expose a curated list of models with known parameter schemas, feature flags (vision, function calling, streaming), and context window sizes.
+
+**Custom providers** let you connect any service that exposes an OpenAI-compatible REST API. This includes:
+- Self-hosted models (vLLM, LM Studio, LocalAI)
+- Third-party API proxies
+- Fine-tuned models deployed on cloud GPU services
+
+## Configuring an OpenAI-compatible custom endpoint
+
+<Steps>
+  <Step title="Add a custom provider">
+    In **Settings → Model Provider**, scroll to **Custom model provider** and click **Add provider**.
+  </Step>
+  <Step title="Enter the endpoint URL">
+    Provide the base URL of your OpenAI-compatible server, e.g., `http://localhost:11434/v1` for a local Ollama instance.
+  </Step>
+  <Step title="Add model definitions">
+    For each model you want to use, click **Add model** and enter:
+    - Model name (must match the `model` field accepted by the API)
+    - Model type (LLM, Text Embedding, etc.)
+    - Context window size
+    - Feature flags (vision, function calling)
+    - Max tokens
+  </Step>
+  <Step title="Set credentials">
+    Enter the API key if required. For local models (Ollama, LM Studio), any non-empty string is typically accepted.
+  </Step>
+</Steps>
+
+<CodeGroup>
+
+```bash Ollama example
+# Start Ollama with Llama 3
+ollama serve
+
+# In Dify custom provider settings:
+# Base URL: http://localhost:11434/v1
+# API key: ollama (any non-empty string)
+# Model name: llama3
+```
+
+```bash vLLM example
+# Start vLLM server
+python -m vllm.entrypoints.openai.api_server \
+  --model mistralai/Mistral-7B-Instruct-v0.2 \
+  --port 8000
+
+# In Dify custom provider settings:
+# Base URL: http://localhost:8000/v1
+# API key: (any non-empty string)
+# Model name: mistralai/Mistral-7B-Instruct-v0.2
+```
+
+</CodeGroup>
+
+## Load balancing
+
+For custom providers, Dify supports configuring multiple credential sets for the same model. The `LBModelManager` uses a round-robin strategy backed by a Redis counter, automatically cooling down credentials that return `InvokeRateLimitError` (60-second cooldown) or `InvokeAuthorizationError` / `InvokeConnectionError` (10-second cooldown).
+
+Configure load balancing in **Settings → Model Provider → [Provider] → [Model] → Load balancing**.

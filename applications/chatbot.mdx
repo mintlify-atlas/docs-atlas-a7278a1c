@@ -1,0 +1,260 @@
+---
+title: 'Chatbot'
+description: 'Build a conversational AI application with persistent memory, knowledge base retrieval, and multi-turn dialogue. Use the chat-messages API to send and receive messages.'
+---
+
+A Chatbot is a multi-turn conversational application backed by an LLM. Each conversation maintains its own history so the model can reference what was said earlier in the session. You can augment a Chatbot with a knowledge base for RAG-based answers, enable file uploads, and add voice input/output.
+
+The underlying app mode is `chat` (or `advanced-chat` for workflow-backed chatbots). Both use the same `POST /chat-messages` API endpoint.
+
+## Configuration options
+
+<AccordionGroup>
+  <Accordion title="Model and parameters">
+    Select the LLM provider and model under **Model**. Adjust generation parameters:
+
+    - **Temperature** — controls randomness. Lower values produce more deterministic responses.
+    - **Top P** — nucleus sampling threshold.
+    - **Max tokens** — maximum number of tokens in the response.
+    - **Presence/frequency penalty** — discourages repetition.
+    - **Stop sequences** — tokens that terminate generation early.
+
+    These parameters map directly to the model provider's API and are applied on every call.
+  </Accordion>
+  <Accordion title="System prompt">
+    The system prompt sets the persona, instructions, and constraints for the assistant. It is prepended to every conversation and is not visible to end users.
+
+    Use `{{variable_name}}` placeholders in the system prompt to reference input variables defined in the **User Input Form**. The values supplied by the user at the start of the conversation are substituted before the first message is sent.
+  </Accordion>
+  <Accordion title="Opening statement">
+    An optional message shown to users before they type their first message. Use it to explain what the assistant can do or to ask for initial context. Configured in **Features → Opening statement**.
+  </Accordion>
+  <Accordion title="Suggested questions">
+    Pre-defined questions shown as clickable chips in the chat UI. Two modes are available:
+
+    - **Static** — you define a fixed list of questions shown at the start of every conversation.
+    - **After-answer suggestions** — the LLM generates follow-up question suggestions after each response. Enable this in **Features → Suggested questions after answer**.
+  </Accordion>
+  <Accordion title="User input form">
+    Define variables that users fill in before the first message. Supported field types:
+
+    | Type | Description |
+    |---|---|
+    | `text-input` | Single-line text field |
+    | `paragraph` | Multi-line text area |
+    | `number` | Numeric input |
+    | `select` | Dropdown with predefined options |
+    | `file` | Single file upload |
+    | `file-list` | Multiple file uploads |
+
+    Variables defined here are available in the system prompt and LLM node via `{{variable_name}}`.
+  </Accordion>
+</AccordionGroup>
+
+## Conversation memory
+
+Dify provides two memory strategies for managing how much conversation history is included in each LLM call:
+
+<Tabs>
+  <Tab title="Window mode">
+    Retains the last *N* message pairs (user + assistant) verbatim. The window is a sliding buffer — older messages are dropped as new ones arrive.
+
+    This is the default mode. It is predictable and works well for conversations where recent context is most important.
+
+    Configure the window size in **Memory → Window size**. Larger windows consume more tokens per call.
+  </Tab>
+  <Tab title="Summary mode">
+    When the conversation history exceeds a token threshold, Dify uses the LLM to generate a rolling summary of the older turns. The summary replaces the raw history in the context window, keeping token usage bounded.
+
+    This mode is better for very long conversations where a compact summary of earlier context is more useful than verbatim transcripts.
+
+    Enable summary mode in **Memory → Memory strategy → Summary**.
+  </Tab>
+</Tabs>
+
+<Note>Memory settings affect context size and cost. Test your chosen strategy with representative conversations to understand the token consumption before publishing.</Note>
+
+## Attaching knowledge bases
+
+Attach one or more knowledge bases to give the chatbot access to your documents via retrieval-augmented generation.
+
+<Steps>
+  <Step title="Open context settings">
+    In the Chatbot editor, click **Context** in the left panel.
+  </Step>
+  <Step title="Add a knowledge base">
+    Click **Add** and select one or more knowledge bases from the list. Only knowledge bases that exist in your workspace are available.
+  </Step>
+  <Step title="Configure retrieval">
+    For each attached knowledge base, configure:
+
+    - **Retrieval strategy** — semantic, full-text, or hybrid.
+    - **Top K** — number of chunks to retrieve per query.
+    - **Score threshold** — minimum similarity score for a chunk to be included.
+  </Step>
+  <Step title="Citation display">
+    Enable **Show retrieval source** in **Features** to display the source documents alongside the response in the web UI.
+  </Step>
+</Steps>
+
+## File uploads
+
+Enable file uploads in **Features → File upload**. Once enabled, users can attach files to their messages. Supported types depend on the model's capabilities — most vision models accept images; some accept PDFs and other documents.
+
+File upload configuration options:
+
+- **Allowed file types** — images, documents, audio, video, or custom extensions.
+- **Maximum file size** — enforced at the API level.
+- **Maximum number of files** — per message.
+
+Uploaded files are referenced in the `files` field of the API request.
+
+## Voice input and output
+
+Enable voice features in **Features**:
+
+- **Speech to text** — converts the user's microphone input to text before sending it as a message. Requires a speech-to-text model configured in your workspace.
+- **Text to speech** — reads the assistant's response aloud. Select a TTS model and voice in the feature settings.
+
+## Publishing
+
+Once configured, click **Publish** in the top-right corner. Dify generates a shareable web URL and an embeddable widget snippet.
+
+- **Web app URL** — a hosted chat interface at `https://udify.app/chat/<app-id>` (cloud) or your self-hosted domain. Share this URL directly with users.
+- **Embed** — copy the iframe snippet from **Access API → Embedded** to embed the chat widget on any webpage.
+
+## API integration
+
+Authenticate requests with your app's API key in the `Authorization` header.
+
+### Send a message
+
+`POST /chat-messages`
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the refund policy?",
+    "inputs": {},
+    "response_mode": "streaming",
+    "conversation_id": "",
+    "user": "user-123"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.dify.ai/v1/chat-messages",
+    headers={"Authorization": "Bearer app-your-api-key"},
+    json={
+        "query": "What is the refund policy?",
+        "inputs": {},
+        "response_mode": "streaming",
+        "conversation_id": "",
+        "user": "user-123",
+    },
+    stream=True,
+)
+
+for line in response.iter_lines():
+    if line:
+        print(line.decode())
+```
+
+```javascript JavaScript
+const response = await fetch("https://api.dify.ai/v1/chat-messages", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer app-your-api-key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    query: "What is the refund policy?",
+    inputs: {},
+    response_mode: "streaming",
+    conversation_id: "",
+    user: "user-123",
+  }),
+});
+```
+
+</CodeGroup>
+
+**Request fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | The user's message text |
+| `inputs` | object | Yes | Values for user input form variables. Pass `{}` if no variables are defined |
+| `response_mode` | string | No | `"streaming"` (server-sent events) or `"blocking"` (wait for full response). Defaults to `"blocking"` |
+| `conversation_id` | string | No | UUID of an existing conversation to continue. Omit or pass `""` to start a new conversation |
+| `user` | string | Yes | Your identifier for the end user. Used for rate limiting and logs |
+| `files` | array | No | Files attached to this message. Each item requires `type`, `transfer_method`, and either `url` or `upload_file_id` |
+| `auto_generate_name` | boolean | No | Whether to auto-generate a conversation title. Defaults to `true` |
+
+### Continue a conversation
+
+To continue an existing conversation, include the `conversation_id` returned in the previous response:
+
+```json
+{
+  "query": "Can you clarify the 30-day window?",
+  "inputs": {},
+  "response_mode": "streaming",
+  "conversation_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user": "user-123"
+}
+```
+
+### Stop a streaming response
+
+`POST /chat-messages/{task_id}/stop`
+
+```bash
+curl -X POST https://api.dify.ai/v1/chat-messages/task-id-here/stop \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"user": "user-123"}'
+```
+
+### List conversations
+
+`GET /conversations`
+
+Returns a paginated list of conversations for the specified user:
+
+```bash
+curl "https://api.dify.ai/v1/conversations?user=user-123&limit=20" \
+  -H "Authorization: Bearer app-your-api-key"
+```
+
+### Delete a conversation
+
+`DELETE /conversations/{conversation_id}`
+
+```bash
+curl -X DELETE https://api.dify.ai/v1/conversations/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"user": "user-123"}'
+```
+
+### Streaming response format
+
+When `response_mode` is `"streaming"`, the response is a stream of server-sent events. Each line is prefixed with `data: ` and contains a JSON object. Event types include:
+
+| Event | Description |
+|---|---|
+| `message` | A chunk of the assistant's text response |
+| `message_end` | Signals the end of the response. Contains usage metadata |
+| `message_replace` | Replaces the accumulated text (used for content moderation) |
+| `error` | An error occurred during generation |
+| `ping` | Keepalive event sent every 10 seconds |
+
+<Tip>Use `"response_mode": "streaming"` for user-facing interfaces to show the response as it is generated. Use `"blocking"` for server-to-server integrations where you need the complete response before proceeding.</Tip>

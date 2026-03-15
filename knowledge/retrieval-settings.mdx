@@ -1,0 +1,125 @@
+---
+title: 'Retrieval settings'
+description: 'Configure how Dify searches your knowledge bases: choose between semantic, full-text, hybrid, or keyword search, set Top-K and score thresholds, and tune reranking for better results.'
+keywords: ['retrieval', 'semantic search', 'full-text search', 'hybrid search', 'reranking', 'Top-K', 'score threshold']
+---
+
+Each dataset stores a retrieval configuration that controls how queries are executed against its index. You can set this configuration when creating a dataset or update it at any time from the dataset's **Settings → Retrieval** page.
+
+## Retrieval modes
+
+Four retrieval methods are available, defined by the `RetrievalMethod` enum:
+
+<AccordionGroup>
+  <Accordion title="Semantic search (semantic_search)">
+    Converts the query to a vector using the dataset's embedding model and performs an approximate nearest-neighbour (ANN) search in the vector store. Returns segments whose meaning is closest to the query — effective even when the user's exact words don't appear in the text.
+
+    **Requires:** high-quality indexing technique.
+  </Accordion>
+
+  <Accordion title="Full-text search (full_text_search)">
+    Executes an inverted-index keyword search against the segment text. Returns segments that contain the same terms as the query — reliable for exact-match lookups such as product codes or names.
+
+    **Requires:** high-quality indexing technique.
+  </Accordion>
+
+  <Accordion title="Hybrid search (hybrid_search)">
+    Runs both semantic search and full-text search in parallel and merges the result sets. A reranking step (model-based or weighted-score) re-scores the merged candidates before the final Top-K is returned.
+
+    **Requires:** high-quality indexing technique plus a configured reranking strategy.
+  </Accordion>
+
+  <Accordion title="Keyword search (keyword_search)">
+    BM25-style keyword lookup using the Jieba keyword index. This is the only method available for datasets using the **economy** indexing technique. It is automatically selected when `indexing_technique == 'economy'`, regardless of the configured search method.
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+The default retrieval configuration for a newly created dataset is `semantic_search` with Top-K = 4 and score threshold disabled.
+</Info>
+
+## Top-K
+
+`top_k` controls the maximum number of segments returned. Increasing Top-K gives the LLM more context but also increases prompt token cost and can introduce noise. A value between 3 and 10 works well for most use cases.
+
+## Score threshold
+
+When `score_threshold_enabled` is `true`, Dify discards any retrieved segment whose similarity score is below `score_threshold` (a float between 0.0 and 1.0). This prevents low-quality matches from appearing in the LLM's context.
+
+```json
+{
+  "search_method": "semantic_search",
+  "top_k": 5,
+  "score_threshold_enabled": true,
+  "score_threshold": 0.6
+}
+```
+
+<Tip>
+Start with a threshold of 0.5–0.6 and raise it if you see irrelevant results. Set it too high and you risk returning zero results for legitimate queries.
+</Tip>
+
+## Reranking
+
+Reranking re-scores an initial candidate set to improve the ordering of results before the Top-K cut-off is applied. Two reranking strategies are available, controlled by `reranking_mode`.
+
+### Reranking model (`reranking_model`)
+
+Passes the query and each retrieved segment to a dedicated cross-encoder reranking model. The model scores each (query, segment) pair directly and returns a relevance score that is more accurate than the initial vector similarity.
+
+Configure the provider and model name:
+
+```json
+{
+  "reranking_enable": true,
+  "reranking_mode": "reranking_model",
+  "reranking_model": {
+    "reranking_provider_name": "cohere",
+    "reranking_model_name": "rerank-english-v3.0"
+  }
+}
+```
+
+Reranking models from any provider configured in your workspace's **Model Provider** settings are supported.
+
+### Weighted score (`weighted_score`)
+
+Combines a semantic similarity score and a keyword relevance score into a single weighted sum without calling an external model. The final score for each segment is:
+
+```
+score = vector_weight × cosine_similarity + keyword_weight × bm25_tfidf_similarity
+```
+
+The two weights must sum to 1.0:
+
+```json
+{
+  "reranking_enable": true,
+  "reranking_mode": "weighted_score",
+  "weights": {
+    "vector_setting": {
+      "vector_weight": 0.7,
+      "embedding_provider_name": "openai",
+      "embedding_model_name": "text-embedding-3-small"
+    },
+    "keyword_setting": {
+      "keyword_weight": 0.3
+    }
+  }
+}
+```
+
+<Warning>
+When using weighted-score reranking across multiple datasets in a single Knowledge Retrieval node, all datasets must use the same embedding model and provider. Mixed embedding models are not supported with weighted score — use a reranking model instead.
+</Warning>
+
+**Keyword scoring detail:** The keyword component uses TF-IDF cosine similarity computed with the Jieba tokeniser. Scores are normalised to [0, 1] before blending with the vector score.
+
+## Multi-dataset retrieval
+
+A single **Knowledge Retrieval** node can query multiple datasets simultaneously. Dify retrieves from all listed datasets in parallel and merges the results:
+
+- **Multiple mode** (default): All datasets are queried with the same query, Top-K, score threshold, and reranking settings. Results from all datasets are merged and re-sorted by score.
+- **Single mode**: An LLM router selects the single most relevant dataset to query using each dataset's description as a routing signal. This reduces retrieval latency when you have many datasets with distinct topics.
+
+For multiple-mode retrieval across datasets with different indexing techniques, you must use a reranking model. Weighted-score reranking is only available when all datasets share the same embedding model.

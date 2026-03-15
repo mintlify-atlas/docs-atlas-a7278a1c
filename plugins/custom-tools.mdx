@@ -1,0 +1,184 @@
+---
+title: Custom API Tools
+description: Create custom tools from an OpenAPI specification and use them in Dify agents and workflows.
+---
+
+## What Are Custom API Tools?
+
+Custom API tools let you expose any HTTP API as a callable tool inside Dify agents and workflows. You define the tool by providing an **OpenAPI / Swagger specification** — Dify parses the spec and creates a structured tool for each operation.
+
+The custom tool system is implemented in `core/tools/custom_tool/`. An `ApiToolProviderController` manages a collection of `ApiTool` instances, each corresponding to one API operation.
+
+Custom tools support three authentication schemes:
+- **None** — no credentials sent
+- **API Key (Header)** — a key sent in an HTTP header (e.g. `Authorization: Bearer <key>`)
+- **API Key (Query Param)** — a key appended to the query string (e.g. `?api_key=<key>`)
+
+---
+
+## Creating a Custom Tool
+
+<Steps>
+  <Step title="Open the Tools section">
+    Navigate to **Workspace → Tools**. Select the **Custom** tab at the top.
+  </Step>
+  <Step title="Create a new tool">
+    Click **Create Custom Tool**.
+  </Step>
+  <Step title="Fill in tool metadata">
+    | Field | Description |
+    |-------|-------------|
+    | **Name** | Display name for the tool provider (shown in tool selectors) |
+    | **Schema** | Paste your OpenAPI JSON or YAML spec (see below) |
+    | **Privacy Policy URL** | Optional link to a privacy policy for this tool |
+    | **Custom Disclaimer** | Optional text shown to users before invoking the tool |
+  </Step>
+  <Step title="Configure authentication">
+    Choose the authentication type that matches your API:
+
+    <Tabs>
+      <Tab title="None">
+        No credentials are required. Select **None** and proceed.
+      </Tab>
+      <Tab title="API Key (Header)">
+        Dify will inject the key as an HTTP header on every request.
+
+        | Field | Default | Description |
+        |-------|---------|-------------|
+        | **Header Name** | `Authorization` | The header to set |
+        | **API Key Value** | — | The secret key |
+        | **Header Prefix** | `basic` | `basic`, `bearer`, or `custom` |
+
+        With `bearer` prefix, the header becomes:
+        ```
+        Authorization: Bearer <api_key_value>
+        ```
+      </Tab>
+      <Tab title="API Key (Query Param)">
+        Dify appends the key to the request URL query string.
+
+        | Field | Default | Description |
+        |-------|---------|-------------|
+        | **Query Param Name** | `key` | The query parameter name |
+        | **API Key Value** | — | The secret key |
+
+        Results in requests like:
+        ```
+        GET https://api.example.com/data?key=<api_key_value>
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Test the tool">
+    After the schema is parsed, individual operations are listed. Click **Test** next to any operation to send a live request and inspect the response.
+  </Step>
+  <Step title="Save">
+    Click **Save**. The custom tool is now available to all workspace members.
+  </Step>
+</Steps>
+
+---
+
+## Writing the OpenAPI Schema
+
+Dify accepts any valid OpenAPI 3.x or Swagger 2.0 specification. A minimal working example:
+
+```yaml
+openapi: 3.0.0
+info:
+  title: Weather API
+  description: Get current weather for a city
+  version: 1.0.0
+servers:
+  - url: https://api.weather.example.com
+paths:
+  /current:
+    get:
+      operationId: getCurrentWeather
+      summary: Get current weather
+      parameters:
+        - name: city
+          in: query
+          required: true
+          description: City name to look up
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+```
+
+### Tips for writing tool schemas
+
+- **`operationId`** is used as the tool name inside Dify. Use descriptive, camelCase names.
+- **`summary`** becomes the tool description shown to the LLM. Write it clearly — it directly influences when the agent decides to call the tool.
+- Parameter **`description`** fields are included in the tool schema passed to the model. Include units, formats, and valid value ranges.
+- For request bodies, use `application/json` content type. Dify serialises tool arguments as JSON.
+- Keep each operation focused on a single action. Multiple focused operations in one spec are better than one operation with many optional parameters.
+
+### Importing an existing spec
+
+If your API already has an OpenAPI spec:
+1. Paste the raw JSON or YAML into the **Schema** field.
+2. Or provide a URL to the spec — Dify will fetch and parse it.
+
+---
+
+## Testing Tools in the Tool Editor
+
+The tool editor includes a built-in request tester:
+
+1. After entering a valid schema, each operation appears as a row.
+2. Click **Test** on any operation.
+3. Fill in the parameter values in the test panel.
+4. Click **Run** to send the request.
+5. Inspect the HTTP response, headers, and body.
+
+The test runs with the authentication credentials you configured. If the test fails, check the **Request** tab to see exactly what Dify sent.
+
+---
+
+## Using Custom Tools in Agents
+
+1. Open your agent app and go to the **Tools** section.
+2. Click **Add Tool** and select the **API** category.
+3. Find your custom tool provider and select the specific operations to enable.
+4. Save the app.
+
+The agent will see the tool descriptions and parameter schemas you defined in the OpenAPI spec. Write clear `summary` and `description` fields to help the model decide when and how to use each operation.
+
+---
+
+## Using Custom Tools in Workflows
+
+1. Add a **Tool** node to the workflow canvas.
+2. In the node panel, select **API** as the provider type.
+3. Choose your custom tool provider and the specific operation.
+4. Map workflow variables to the tool parameters.
+5. The tool response is available as the node's output variable for downstream use.
+
+---
+
+## Sharing Tools Across the Workspace
+
+Custom tools are **workspace-scoped**. Any editor or administrator in the workspace can:
+- Use the tool in their own agents and workflows.
+- View the tool schema (credentials are masked).
+
+Only administrators can edit or delete a custom tool provider.
+
+<Warning>
+Deleting a custom tool provider removes the tool from all agents and workflows that reference it. Those references will break until you recreate the tool or update the affected apps.
+</Warning>
+
+---
+
+## Editing a Custom Tool
+
+1. Go to **Workspace → Tools → Custom**.
+2. Click the three-dot menu on the tool provider card.
+3. Select **Edit**.
+4. Update the schema, authentication, or metadata.
+5. Click **Save**.
+
+Existing agents and workflows that use the tool will automatically pick up schema changes on the next invocation. If you remove an operation that was referenced in an agent, the agent will lose that tool capability.

@@ -1,0 +1,133 @@
+---
+title: Members and roles
+description: Manage team members in your Dify workspace and understand what each role can do.
+---
+
+Dify uses role-based access control within each workspace. Every member of a workspace is assigned exactly one role, which determines what they can view and modify.
+
+## Roles
+
+### Owner
+
+The account that created the workspace. There is exactly one owner per workspace.
+
+- Full access to all workspace settings, applications, and knowledge bases
+- Can invite and remove members
+- Can change any member's role
+- Can transfer ownership to another member
+- Can access and modify billing settings
+
+### Admin
+
+Trusted collaborators with broad management access.
+
+- Can create, edit, and delete applications and knowledge bases
+- Can manage model providers
+- Can invite and remove members
+- Can change member roles (but cannot change the owner's role or promote someone to owner)
+- Cannot access billing settings
+
+### Normal member
+
+Standard team members.
+
+- Can create and edit applications and knowledge bases
+- Can view workspace members
+- Cannot manage model providers or workspace settings
+- Cannot invite or remove members
+
+### Dataset operator
+
+A specialized role scoped to knowledge base management only.
+
+- Can create, edit, and delete knowledge bases and documents
+- Cannot create or edit applications
+- Cannot manage workspace settings or members
+
+## Role permissions matrix
+
+| Action | Owner | Admin | Normal | Dataset operator |
+|--------|-------|-------|--------|------------------|
+| Create applications | ✓ | ✓ | ✓ | — |
+| Delete applications | ✓ | ✓ | — | — |
+| Manage model providers | ✓ | ✓ | — | — |
+| Create/edit knowledge bases | ✓ | ✓ | ✓ | ✓ |
+| Delete knowledge bases | ✓ | ✓ | — | ✓ |
+| View members | ✓ | ✓ | ✓ | ✓ |
+| Invite members | ✓ | ✓ | — | — |
+| Remove members | ✓ | ✓ | — | — |
+| Change member roles | ✓ | ✓ | — | — |
+| Workspace settings | ✓ | — | — | — |
+| Billing settings | ✓ | — | — | — |
+| Transfer ownership | ✓ | — | — | — |
+
+## Inviting members
+
+<Steps>
+  <Step title="Open member settings">
+    Go to **Settings → Members**.
+  </Step>
+  <Step title="Click Invite Member">
+    Click the **Invite Member** button in the upper right.
+  </Step>
+  <Step title="Enter email addresses">
+    Enter one or more email addresses. You can invite multiple people at once by separating addresses with commas.
+  </Step>
+  <Step title="Select a role">
+    Choose the role to assign: Admin, Normal, or Dataset Operator. You cannot invite someone as Owner.
+  </Step>
+  <Step title="Send invitations">
+    Click **Send**. Dify sends each invitee an email with an activation link.
+  </Step>
+</Steps>
+
+Invitation links expire after **72 hours** by default (configurable via `INVITE_EXPIRY_HOURS` on self-hosted deployments).
+
+<Note>
+If the invited email address already has a Dify account, the person will be added to the workspace immediately. If not, they must complete account registration via the invitation link.
+</Note>
+
+## Removing members
+
+1. Go to **Settings → Members**.
+2. Find the member in the list.
+3. Click the **Remove** (trash) icon next to their name.
+4. Confirm the removal.
+
+Removing a member revokes their access to the workspace immediately. It does not delete their Dify account—they can still access other workspaces they belong to.
+
+<Warning>
+You cannot remove yourself from a workspace if you are the owner. Transfer ownership first.
+</Warning>
+
+## Changing a member's role
+
+1. Go to **Settings → Members**.
+2. Click the role badge next to the member's name.
+3. Select the new role from the dropdown.
+4. The change takes effect immediately.
+
+## Transferring workspace ownership
+
+Ownership transfer is a two-step verified process to prevent accidental transfers:
+
+<Steps>
+  <Step title="Initiate the transfer">
+    Go to **Settings → Members** and click **Transfer Ownership**.
+  </Step>
+  <Step title="Receive and enter the confirmation code">
+    Dify sends a confirmation code to the current owner's email address. Enter the code and the one-time token to verify your identity.
+  </Step>
+  <Step title="Select the new owner">
+    Choose the member to transfer ownership to. They must already be a member of the workspace.
+  </Step>
+  <Step title="Confirm">
+    Submit the transfer. The selected member becomes the new Owner and the previous owner becomes an Admin.
+  </Step>
+</Steps>
+
+Both the outgoing owner and the new owner receive notification emails when a transfer completes.
+
+<Info>
+Ownership transfer may be restricted on enterprise deployments. If the **Transfer Ownership** button is not visible, contact your workspace administrator.
+</Info>

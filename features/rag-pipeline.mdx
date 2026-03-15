@@ -1,0 +1,154 @@
+---
+title: 'RAG pipeline'
+description: 'Build knowledge bases from your documents and connect them to AI applications. The RAG pipeline handles extraction, chunking, embedding, indexing, and retrieval.'
+---
+
+Dify's RAG (Retrieval-Augmented Generation) pipeline lets you ingest documents into a searchable knowledge base and retrieve relevant chunks at query time. Retrieved chunks are injected into your prompt context so the LLM can answer questions grounded in your specific content.
+
+## Creating a knowledge base
+
+<Steps>
+  <Step title="Open the Knowledge section">
+    From the Dify sidebar, navigate to **Knowledge** and click **Create knowledge base**.
+  </Step>
+  <Step title="Upload documents">
+    Drag and drop files or click **Upload files**. You can also connect external sources such as Notion pages or web URLs. Dify will queue each file for processing.
+  </Step>
+  <Step title="Choose indexing mode">
+    Select **Automatic** to let Dify choose sensible defaults, or switch to **Custom** to control the segmentation strategy, embedding model, and retrieval settings.
+  </Step>
+  <Step title="Save and index">
+    Click **Save and process**. Dify starts the ingestion pipeline in the background. A progress indicator shows the status of each document. Indexing time depends on document size and the embedding model's throughput.
+  </Step>
+</Steps>
+
+## Supported document formats
+
+The `ExtractProcessor` in `core/rag/extractor/` handles the following formats:
+
+<CardGroup cols={3}>
+  <Card title="PDF" icon="file-pdf">
+    Extracted via `PdfExtractor`. Preserves page structure. Optionally uses the Unstructured API for complex layouts.
+  </Card>
+  <Card title="DOCX / DOC" icon="file-word">
+    Extracted via `WordExtractor` (native python-docx) or `UnstructuredWordExtractor` for legacy `.doc` files.
+  </Card>
+  <Card title="PPTX / PPT" icon="presentation">
+    Extracted via `UnstructuredPPTXExtractor` and `UnstructuredPPTExtractor`. Slide text is extracted in order.
+  </Card>
+  <Card title="XLSX / XLS" icon="table">
+    Extracted via `ExcelExtractor`. Each sheet is processed as a separate section.
+  </Card>
+  <Card title="CSV" icon="file-spreadsheet">
+    Extracted via `CSVExtractor`. Column headers and row values are preserved.
+  </Card>
+  <Card title="TXT / Markdown / MDX" icon="file-text">
+    Extracted via `TextExtractor` and `MarkdownExtractor`. Markdown headings and structure are preserved for hierarchical chunking.
+  </Card>
+  <Card title="HTML" icon="code">
+    Extracted via `HtmlExtractor`. Boilerplate navigation and scripts are stripped.
+  </Card>
+  <Card title="EPUB" icon="book">
+    Extracted via `UnstructuredEpubExtractor`. Chapter structure is preserved.
+  </Card>
+  <Card title="EML / MSG" icon="mail">
+    Extracted via `UnstructuredEmailExtractor` and `UnstructuredMsgExtractor`. Headers, body, and plain-text attachments are extracted.
+  </Card>
+  <Card title="XML" icon="code">
+    Extracted via `UnstructuredXmlExtractor`.
+  </Card>
+  <Card title="Notion" icon="layout">
+    Synced via `NotionExtractor`. Connects to your Notion workspace using an integration token.
+  </Card>
+  <Card title="Web pages" icon="globe">
+    Crawled via `JinaReaderWebExtractor`, `FirecrawlWebExtractor`, or `WaterCrawlWebExtractor` depending on your configuration.
+  </Card>
+</CardGroup>
+
+## Ingestion pipeline
+
+Each document passes through the following stages before it becomes searchable:
+
+```
+Raw document
+    │
+    ▼
+[1] Extraction       — parse raw bytes into plain text / structured Document objects
+    │
+    ▼
+[2] Cleaning         — normalize whitespace, remove boilerplate, apply custom rules
+    │
+    ▼
+[3] Splitting        — divide text into overlapping chunks using a splitter strategy
+    │
+    ▼
+[4] Embedding        — encode each chunk into a dense vector using the embedding model
+    │
+    ▼
+[5] Indexing         — store vectors (and optional full-text index) for fast retrieval
+```
+
+### Splitting strategies
+
+Dify supports two primary segmentation strategies:
+
+- **Automatic:** Dify infers chunk boundaries based on document structure (headings, paragraphs, code blocks).
+- **Custom:** You set the chunk size (in tokens or characters), overlap size, and separator patterns. This gives you precise control over chunk granularity.
+
+## Retrieval modes
+
+The `RetrievalMethod` enum in `core/rag/retrieval/retrieval_methods.py` defines four retrieval modes:
+
+<Tabs>
+  <Tab title="Semantic search">
+    Encodes the query into a vector using the same embedding model used during indexing. Retrieves chunks whose vectors are closest to the query vector (cosine similarity). Best for semantic similarity matching where exact keyword overlap is not required.
+
+    ```python
+    RetrievalMethod.SEMANTIC_SEARCH  # "semantic_search"
+    ```
+  </Tab>
+  <Tab title="Full-text search">
+    Performs a traditional keyword search against the full-text index. Best for precise term matching, codes, identifiers, or proper nouns.
+
+    ```python
+    RetrievalMethod.FULL_TEXT_SEARCH  # "full_text_search"
+    ```
+  </Tab>
+  <Tab title="Hybrid search">
+    Combines semantic and full-text search results. Retrieves candidates from both indexes and merges the ranked lists. Supported by both `is_support_semantic_search` and `is_support_fulltext_search` helper methods.
+
+    ```python
+    RetrievalMethod.HYBRID_SEARCH  # "hybrid_search"
+    ```
+  </Tab>
+  <Tab title="Keyword search">
+    Returns chunks containing exact keyword matches. Fast but does not handle synonyms or paraphrasing.
+
+    ```python
+    RetrievalMethod.KEYWORD_SEARCH  # "keyword_search"
+    ```
+  </Tab>
+</Tabs>
+
+## Reranking
+
+After initial retrieval, Dify can apply a reranker to re-score and reorder the candidate chunks before injecting them into the prompt. The `RerankMode` enum exposes two options:
+
+| Mode | Description |
+|---|---|
+| `reranking_model` | Use a dedicated reranking model (e.g., Cohere Rerank, BGE Reranker). The model assigns a relevance score to each (query, chunk) pair. |
+| `weighted_score` | Combine semantic and keyword scores using configurable weights. No additional model API call required. |
+
+Configure reranking in the knowledge base **Retrieval settings** panel. Set a **Score threshold** to filter out low-relevance chunks, and set **Top N** to control how many chunks are injected into the prompt.
+
+## Connecting knowledge bases to applications
+
+Knowledge bases can be attached to any Dify application type.
+
+**In a chatbot or text generator:** Open the app's **Context** panel and click **Add**. Select one or more knowledge bases. Dify automatically retrieves relevant chunks for each user message and injects them into the system prompt context.
+
+**In a workflow:** Add a **Knowledge retrieval** node. Configure the query variable (typically `sys.query` or an upstream LLM output), select the target knowledge bases, and choose the retrieval mode. The node outputs `result` (a list of retrieved document chunks with metadata) that downstream nodes can reference.
+
+**In an agent:** Enable the **Knowledge retrieval** tool from the agent's tool panel. The agent can call it when it determines that document lookup is needed.
+
+<Note>Each knowledge base is scoped to your workspace. Users of end-user-facing apps access the knowledge base indirectly through the app's retrieval logic — they do not have direct access to the underlying documents.</Note>

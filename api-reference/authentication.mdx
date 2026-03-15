@@ -1,0 +1,52 @@
+---
+title: Authentication
+description: How to authenticate requests to the Dify API using API keys.
+---
+
+Dify uses API keys to authenticate all requests. Every call must include a valid API key in the `Authorization` header.
+
+## Obtaining an API Key
+
+<AccordionGroup>
+  <Accordion title="App API Key">
+    1. Open your Dify application.
+    2. Go to **Settings** → **API Access**.
+    3. Copy the **API Key** shown on that page.
+  </Accordion>
+  <Accordion title="Dataset API Key">
+    1. Go to the **Knowledge** section of your Dify workspace.
+    2. Click **API Settings**.
+    3. Copy the **API Key** shown there.
+  </Accordion>
+</AccordionGroup>
+
+## Using Your API Key
+
+Pass the key as a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer {api_key}
+```
+
+### Example
+
+```bash
+curl https://api.dify.ai/v1/info \
+  -H 'Authorization: Bearer app-abc123xyz'
+```
+
+## Authentication Errors
+
+If the API key is missing or invalid, the API returns `401 Unauthorized`:
+
+```json
+{
+  "code": "unauthorized",
+  "message": "Invalid or missing API key.",
+  "status": 401
+}
+```
+
+<Warning>
+Keep your API key secret. Do not expose it in client-side code or public repositories. Rotate the key immediately if it is compromised.
+</Warning>

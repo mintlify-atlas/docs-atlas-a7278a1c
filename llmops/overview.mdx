@@ -1,0 +1,66 @@
+---
+title: LLMOps overview
+description: Monitor, analyze, and continuously improve your Dify AI applications in production.
+---
+
+LLMOps (Large Language Model Operations) refers to the practices and tooling required to deploy, monitor, and improve AI applications after they go live. In Dify, LLMOps is built into the platform—every application automatically captures logs, usage metrics, user feedback, and model performance data you can act on.
+
+## Why LLMOps matters
+
+LLM applications behave differently from traditional software. Prompt quality, model choice, and retrieval configuration all affect output quality in ways that only become visible at scale. Production data is the most reliable signal for improvement:
+
+- A prompt that performs well in testing may fail on real user queries.
+- Token costs accumulate quickly without visibility into usage patterns.
+- User feedback (thumbs up/down) reveals satisfaction that automated evals miss.
+- Annotation lets subject-matter experts correct model outputs and feed those corrections back into the application.
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Conversation logs" icon="message-square">
+    Browse every conversation by session. Filter by time, user, or content. Export to CSV for offline analysis.
+  </Card>
+  <Card title="Annotations" icon="pen-line">
+    Mark conversations with expected answers. Enable annotation-reply mode to serve those answers directly.
+  </Card>
+  <Card title="Performance metrics" icon="chart-line">
+    Track daily active users, message volume, token usage, and per-message latency over time.
+  </Card>
+  <Card title="Tracing integrations" icon="activity">
+    Send detailed trace data to Langfuse, Arize Phoenix, Opik, LangSmith, MLflow, Weave, and more.
+  </Card>
+</CardGroup>
+
+## LLMOps workflow
+
+<Steps>
+  <Step title="Deploy">
+    Publish your application. Dify begins capturing all conversation data automatically—no instrumentation required.
+  </Step>
+  <Step title="Monitor">
+    Open the **Monitor** tab in your application to view message volume, active users, token usage, and latency trends.
+  </Step>
+  <Step title="Analyze">
+    Browse conversation logs to find sessions where the model gave poor answers. Filter by user feedback to prioritize the worst cases.
+  </Step>
+  <Step title="Annotate">
+    Add expected answers to problematic conversations. These annotations can be used as a correction dataset or to override model responses directly.
+  </Step>
+  <Step title="Improve">
+    Update your prompt, adjust retrieval settings, or switch models. Use the annotation dataset for evaluation to measure whether changes improve quality.
+  </Step>
+</Steps>
+
+## Where to find LLMOps features
+
+All LLMOps features are scoped to an individual application:
+
+1. Open your application from the Dify dashboard.
+2. Click **Monitor** in the left sidebar.
+3. Use the **Logs & Ann.** and **Overview** tabs.
+
+For tracing integrations, navigate to your application **Settings → Monitoring**.
+
+<Info>
+LLMOps features apply to all application types: chatbots, text generators, agents, and workflows.
+</Info>

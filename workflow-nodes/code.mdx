@@ -1,0 +1,181 @@
+---
+title: 'Code node'
+description: 'Execute sandboxed Python 3 or JavaScript code to transform data, parse JSON, and perform custom logic inside a Dify workflow.'
+---
+
+The **Code node** runs custom code in a sandboxed environment. Use it when built-in nodes are insufficient for a particular data transformation or computation task.
+
+## Supported languages
+
+<Tabs>
+  <Tab title="Python 3">
+    Set `code_language` to `python3`. Code runs in Python 3 and has access to the Python standard library.
+
+    ```python
+    def main(text: str, threshold: float) -> dict:
+        words = text.lower().split()
+        unique = list(set(words))
+        filtered = [w for w in unique if len(w) > threshold]
+        return {
+            "word_count": len(words),
+            "filtered_words": filtered,
+        }
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    Set `code_language` to `javascript`. Code runs in a Node.js-compatible ES6 environment.
+
+    ```javascript
+    async function main({ text, threshold }) {
+      const words = text.toLowerCase().split(/\s+/);
+      const unique = [...new Set(words)];
+      const filtered = unique.filter(w => w.length > threshold);
+      return {
+        word_count: words.length,
+        filtered_words: filtered,
+      };
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Input variables
+
+Declare the variables you want to pass into the code using `variables`. Each entry maps a workflow variable selector to a local name accessible in your function:
+
+```json
+{
+  "variables": [
+    {
+      "variable": "text",
+      "value_selector": ["llm_node_id", "text"]
+    },
+    {
+      "variable": "threshold",
+      "value_selector": ["start", "min_word_length"]
+    }
+  ]
+}
+```
+
+The `variable` field becomes the parameter name in your `main` function. The `value_selector` path points to a node output or start variable in the workflow.
+
+## Output variables
+
+Define the shape of your code's return value in `outputs`. Each key in the dict returned by `main` must correspond to an entry here:
+
+```json
+{
+  "outputs": {
+    "word_count": { "type": "number" },
+    "filtered_words": { "type": "array[string]" }
+  }
+}
+```
+
+### Supported output types
+
+| Type | Description |
+|---|---|
+| `string` | Plain text |
+| `number` | Integer or float |
+| `object` | JSON object |
+| `boolean` | `true` or `false` |
+| `array[string]` | Array of strings |
+| `array[number]` | Array of numbers |
+| `array[object]` | Array of objects |
+| `array[boolean]` | Array of booleans |
+
+Nested objects can be declared using the `children` field for deeper type checking.
+
+## Sandboxed execution
+
+Code runs in an isolated sandbox with the following restrictions:
+
+- **No network access** by default. Outbound HTTP calls from code are blocked. Use the HTTP Request node for external API calls.
+- **Standard library only**. Third-party packages are not available unless explicitly configured in `dependencies`.
+- **Resource limits** are enforced by the platform:
+  - Maximum string length: configurable via `CODE_MAX_STRING_LENGTH`
+  - Maximum array lengths for strings, numbers, and objects
+  - Maximum numeric precision and value range
+  - Maximum object depth
+
+<Warning>
+Do not attempt file system access or subprocess spawning inside Code nodes. Such operations will fail or be blocked by the sandbox.
+</Warning>
+
+## Examples
+
+<AccordionGroup>
+  <Accordion title="Extract JSON fields">
+    Parse a JSON string from an LLM output and extract specific fields:
+
+    ```python
+    import json
+
+    def main(llm_output: str) -> dict:
+        try:
+            data = json.loads(llm_output)
+            return {
+                "name": data.get("name", ""),
+                "score": float(data.get("score", 0)),
+            }
+        except (json.JSONDecodeError, ValueError):
+            return {"name": "", "score": 0.0}
+    ```
+  </Accordion>
+  <Accordion title="Format a list for display">
+    Convert an array of objects into a Markdown table:
+
+    ```python
+    def main(rows: list) -> dict:
+        if not rows:
+            return {"table": "No data."}
+        headers = list(rows[0].keys())
+        header_row = "| " + " | ".join(headers) + " |"
+        divider = "| " + " | ".join(["---"] * len(headers)) + " |"
+        body = "\n".join(
+            "| " + " | ".join(str(row.get(h, "")) for h in headers) + " |"
+            for row in rows
+        )
+        return {"table": "\n".join([header_row, divider, body])}
+    ```
+  </Accordion>
+  <Accordion title="Split and clean text">
+    Split a long text into chunks by sentence and strip whitespace:
+
+    ```python
+    import re
+
+    def main(text: str, max_length: int) -> dict:
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        chunks, current = [], ""
+        for sentence in sentences:
+            if len(current) + len(sentence) > max_length and current:
+                chunks.append(current.strip())
+                current = sentence
+            else:
+                current += " " + sentence
+        if current:
+            chunks.append(current.strip())
+        return {"chunks": chunks, "chunk_count": len(chunks)}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Error handling
+
+If your code raises an uncaught exception, the Code node fails with `WorkflowNodeExecutionStatus.FAILED`. The error message includes the exception text.
+
+Handle expected errors inside your code to avoid stopping the entire workflow:
+
+```python
+def main(raw_json: str) -> dict:
+    try:
+        data = __import__('json').loads(raw_json)
+        return {"parsed": data, "error": ""}
+    except Exception as e:
+        return {"parsed": {}, "error": str(e)}
+```
+
+Alternatively, enable the **Continue on error** strategy on the node so downstream nodes receive empty outputs instead of a workflow failure.

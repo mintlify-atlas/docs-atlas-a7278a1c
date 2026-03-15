@@ -1,0 +1,182 @@
+---
+title: Configuring Model Providers
+description: Step-by-step instructions for adding API credentials, configuring provider settings, enabling load balancing, and setting workspace defaults in Dify.
+---
+
+## Accessing Model Provider Settings
+
+All model configuration is done from the workspace settings panel.
+
+<Steps>
+  <Step title="Open Settings">
+    Click your workspace name in the top-left corner, then select **Settings**.
+  </Step>
+  <Step title="Navigate to Model Provider">
+    In the left sidebar, select **Model Provider**. You will see a grid of all supported providers.
+  </Step>
+  <Step title="Choose a provider">
+    Click **Set up** (or the settings icon if already configured) on the provider you want to configure.
+  </Step>
+</Steps>
+
+---
+
+## Configuring Common Providers
+
+<Tabs>
+  <Tab title="OpenAI">
+    <Steps>
+      <Step title="Enter your API key">
+        Paste your key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys) into the **API Key** field.
+      </Step>
+      <Step title="Organization ID (optional)">
+        If your account belongs to multiple organizations, enter your **Organization ID** to scope all requests to the correct org.
+      </Step>
+      <Step title="Save and test">
+        Click **Save**. Dify will call the OpenAI `/models` endpoint to validate the key. A green checkmark confirms a successful connection.
+      </Step>
+    </Steps>
+
+    <Note>
+    If you are using the Azure OpenAI service, use the **Azure OpenAI** provider card instead — not the standard OpenAI card.
+    </Note>
+  </Tab>
+
+  <Tab title="Anthropic">
+    <Steps>
+      <Step title="Enter your API key">
+        Paste your key from [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) into the **API Key** field.
+      </Step>
+      <Step title="Save and test">
+        Click **Save**. Dify validates the key by listing available models.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Azure OpenAI">
+    Azure OpenAI requires three pieces of information:
+
+    <Steps>
+      <Step title="Endpoint URL">
+        Enter your Azure OpenAI endpoint, e.g.:
+        ```
+        https://my-resource.openai.azure.com/
+        ```
+      </Step>
+      <Step title="API Key">
+        Paste your Azure OpenAI key from the Azure portal.
+      </Step>
+      <Step title="API Version">
+        Enter the API version string, e.g. `2024-02-01`.
+      </Step>
+      <Step title="Add deployments">
+        Click **Add Model** to map each Azure deployment to a model type. You must add each deployment separately:
+
+        | Deployment name | Model type |
+        |-----------------|------------|
+        | `gpt-4o-deploy` | LLM |
+        | `ada-embed-deploy` | Text Embedding |
+        | `whisper-deploy` | Speech-to-Text |
+      </Step>
+      <Step title="Save">
+        Click **Save**. Connection is verified against your Azure endpoint.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Ollama">
+    Ollama does not require an API key. It only needs the URL where the Ollama server is listening.
+
+    <Steps>
+      <Step title="Start Ollama">
+        Ensure Ollama is running on your machine or network:
+        ```bash
+        ollama serve
+        ```
+      </Step>
+      <Step title="Enter base URL">
+        In the Ollama provider settings, enter:
+        ```
+        http://localhost:11434
+        ```
+        For Docker-based Dify deployments connecting to Ollama on the host:
+        ```
+        http://host.docker.internal:11434
+        ```
+      </Step>
+      <Step title="Save">
+        Click **Save**. Dify will list models that are currently pulled in Ollama.
+      </Step>
+    </Steps>
+
+    <Tip>
+    Pull new models with `ollama pull <model>`. They appear in Dify immediately after the next model list refresh.
+    </Tip>
+  </Tab>
+</Tabs>
+
+---
+
+## Load Balancing Configuration
+
+Load balancing lets you distribute inference traffic across multiple API keys for the same provider. This increases throughput and reduces the impact of individual rate limits.
+
+<Warning>
+Load balancing is an Enterprise plan feature. The configuration panel is hidden on Starter and Professional plans.
+</Warning>
+
+<Steps>
+  <Step title="Open model settings">
+    In **Model Provider**, find the provider you want to load-balance. Click the settings icon, then select a specific model (e.g. `gpt-4o`).
+  </Step>
+  <Step title="Enable load balancing">
+    Toggle **Load Balancing** on.
+  </Step>
+  <Step title="Add credentials">
+    Click **Add Configuration**. Each configuration entry has:
+    - **Name** — a label for this credential (e.g. `key-team-a`)
+    - **API Key** — the actual key value
+
+    Add as many credentials as you have available. Dify cycles through them in round-robin order.
+  </Step>
+  <Step title="Inherit provider credential (optional)">
+    If you have already configured a provider-level API key, you can include it in the load balancer by adding a credential named `__inherit__`. This tells the balancer to reuse the existing provider key as one of the round-robin slots.
+  </Step>
+  <Step title="Save">
+    Click **Save**. Load balancing takes effect on the next model invocation.
+  </Step>
+</Steps>
+
+### Cooldown behaviour
+
+If a credential receives a rate-limit error, it is automatically cooled down for **60 seconds**. If it returns an authorization or connection error, it cools down for **10 seconds**. During cooldown, that slot is skipped and traffic falls to the remaining active credentials.
+
+---
+
+## Setting System Model Defaults
+
+System model defaults are the models Dify uses when an application has not explicitly chosen one.
+
+<Steps>
+  <Step title="Open System Model Settings">
+    At the top of the **Model Provider** page, click **System Model Settings**.
+  </Step>
+  <Step title="Set defaults for each model type">
+    Configure a default model for each of the following:
+
+    | Setting | Used by |
+    |---------|---------|
+    | **Inference Model** | All LLM calls without an explicit model selection |
+    | **Embedding Model** | Knowledge base indexing and RAG retrieval |
+    | **Reranking Model** | Passage reranking in RAG pipelines |
+    | **Text-to-Speech** | TTS output nodes in workflows |
+    | **Speech-to-Text** | STT input nodes in workflows |
+  </Step>
+  <Step title="Save">
+    Click **Save**. Changes take effect immediately for all apps that rely on workspace defaults.
+  </Step>
+</Steps>
+
+<Info>
+Apps that have overridden the model in their own settings are not affected by changes to system defaults.
+</Info>

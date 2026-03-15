@@ -1,0 +1,48 @@
+---
+title: Delete Document
+description: Permanently delete a document from a dataset.
+---
+
+<Note>
+This endpoint uses the **Dataset API Key**, not the App API Key.
+</Note>
+
+## Endpoint
+
+```
+DELETE /datasets/{dataset_id}/documents/{document_id}
+```
+
+<Warning>
+Archived documents cannot be deleted. Un-archive the document first.
+Documents that are currently being indexed also cannot be deleted.
+</Warning>
+
+## Path Parameters
+
+<ParamField path="dataset_id" type="string" required>
+  The UUID of the dataset containing the document.
+</ParamField>
+
+<ParamField path="document_id" type="string" required>
+  The UUID of the document to delete.
+</ParamField>
+
+## Response
+
+Returns `204 No Content` on success. No response body.
+
+## Errors
+
+| Status | Code | Description |
+|---|---|---|
+| 403 | `archived_document_immutable` | The document is archived and cannot be deleted. |
+| 404 | `not_found` | The document or dataset does not exist. |
+| 409 | `document_indexing` | The document is currently being indexed and cannot be deleted. |
+
+## Example
+
+```bash
+curl -X DELETE https://api.dify.ai/v1/datasets/c3d4e5f6-1234-5678-abcd-ef0123456789/documents/a1b2c3d4-0000-1111-2222-333344445555 \
+  -H 'Authorization: Bearer {dataset_api_key}'
+```

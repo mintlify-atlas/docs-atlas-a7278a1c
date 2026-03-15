@@ -1,0 +1,146 @@
+---
+title: App Parameters
+description: Retrieve the input parameters and feature configuration for the application.
+---
+
+## Endpoint
+
+```
+GET /parameters
+```
+
+Returns the full configuration of the application including its input form variables, enabled features, and system file size limits. Use this endpoint to render the app's UI dynamically.
+
+## Response
+
+<ResponseField name="opening_statement" type="string">
+  The opening message displayed to users at the start of a conversation.
+</ResponseField>
+
+<ResponseField name="suggested_questions" type="array">
+  List of suggested starter questions shown to the user.
+</ResponseField>
+
+<ResponseField name="suggested_questions_after_answer" type="object">
+  Configuration for the suggested questions after each answer feature.
+  Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="speech_to_text" type="object">
+  Speech-to-text feature configuration. Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="text_to_speech" type="object">
+  Text-to-speech feature configuration. Contains `enabled` (boolean), `voice`, and `language`.
+</ResponseField>
+
+<ResponseField name="retriever_resource" type="object">
+  Citation and attribution feature configuration. Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="annotation_reply" type="object">
+  Annotation reply feature configuration. Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="more_like_this" type="object">
+  More Like This feature configuration (Completion apps only). Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="user_input_form" type="array">
+  List of input form field definitions. Each entry is an object with a single key (the field type) containing the field configuration.
+
+  <Expandable title="Field types">
+    **`text-input`** — a single-line text field:
+    - `label` (string): Display label.
+    - `variable` (string): Variable name used in the prompt.
+    - `required` (boolean): Whether the field is mandatory.
+    - `default` (string): Default value.
+    - `max_length` (integer): Maximum character length.
+
+    **`paragraph`** — a multi-line text field (same properties as `text-input`).
+
+    **`select`** — a dropdown selection:
+    - `label` (string): Display label.
+    - `variable` (string): Variable name.
+    - `required` (boolean): Whether required.
+    - `default` (string): Default selection.
+    - `options` (array of strings): Available options.
+
+    **`number`** — a numeric input:
+    - `label` (string): Display label.
+    - `variable` (string): Variable name.
+    - `required` (boolean): Whether required.
+    - `default` (number): Default value.
+
+    **`file`** and **`file-list`** — file upload fields:
+    - `label` (string): Display label.
+    - `variable` (string): Variable name.
+    - `required` (boolean): Whether required.
+    - `allowed_file_types` (array): Permitted file extensions.
+    - `allowed_file_upload_methods` (array): Allowed upload methods.
+    - `max_length` (integer): Maximum number of files (for `file-list`).
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="sensitive_word_avoidance" type="object">
+  Sensitive word filtering configuration. Contains `enabled` (boolean).
+</ResponseField>
+
+<ResponseField name="file_upload" type="object">
+  File upload configuration. Contains allowed types, methods, and limits.
+</ResponseField>
+
+<ResponseField name="system_parameters" type="object">
+  System-level file size limits.
+
+  <Expandable title="system_parameters object">
+    <ResponseField name="image_file_size_limit" type="integer">Max image file size in MB.</ResponseField>
+    <ResponseField name="video_file_size_limit" type="integer">Max video file size in MB.</ResponseField>
+    <ResponseField name="audio_file_size_limit" type="integer">Max audio file size in MB.</ResponseField>
+    <ResponseField name="file_size_limit" type="integer">Max general file size in MB.</ResponseField>
+    <ResponseField name="workflow_file_upload_limit" type="integer">Max files per workflow run.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl https://api.dify.ai/v1/parameters \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "opening_statement": "Hello! How can I help you today?",
+  "suggested_questions": [
+    "What are your business hours?",
+    "How do I reset my password?"
+  ],
+  "suggested_questions_after_answer": { "enabled": true },
+  "speech_to_text": { "enabled": false },
+  "text_to_speech": { "enabled": false, "voice": "", "language": "" },
+  "retriever_resource": { "enabled": true },
+  "annotation_reply": { "enabled": false },
+  "more_like_this": { "enabled": false },
+  "user_input_form": [
+    {
+      "text-input": {
+        "label": "Your Name",
+        "variable": "name",
+        "required": true,
+        "default": "",
+        "max_length": 100
+      }
+    }
+  ],
+  "sensitive_word_avoidance": { "enabled": false },
+  "file_upload": {},
+  "system_parameters": {
+    "image_file_size_limit": 10,
+    "video_file_size_limit": 100,
+    "audio_file_size_limit": 50,
+    "file_size_limit": 15,
+    "workflow_file_upload_limit": 10
+  }
+}
+```

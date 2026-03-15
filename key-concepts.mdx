@@ -1,0 +1,136 @@
+---
+title: 'Key concepts'
+description: 'Core concepts you need to understand to build effectively with Dify.'
+---
+
+Dify is built around a small set of concepts that compose together to form complete AI applications. This page explains each concept and how they relate to one another.
+
+## Application types
+
+<CardGroup cols={2}>
+  <Card title="Chatbot" icon="message-circle">
+    A conversational application backed by an LLM. Maintains conversation history, supports multi-turn dialogue, and can be augmented with a Knowledge Base for RAG-based answers. Suitable for customer support, Q&A assistants, and general-purpose chat interfaces.
+  </Card>
+  <Card title="Text Generator" icon="file-text">
+    A single-turn application that takes structured inputs and produces a text output — for example, generating a blog post outline, translating a passage, or summarising a document. Inputs are defined as form fields presented to the user before generation runs.
+  </Card>
+  <Card title="Agent" icon="cpu">
+    An LLM that can autonomously decide which tools to call to complete a goal. Supports OpenAI Function Calling and ReAct reasoning strategies. Comes with 50+ built-in tools (web search, DALL·E, Stable Diffusion, WolframAlpha, and more) and supports custom tools defined as API calls.
+  </Card>
+  <Card title="Workflow" icon="git-branch">
+    A directed acyclic graph (DAG) of nodes built on a visual canvas. Each node performs a specific operation — calling an LLM, querying a knowledge base, running code, making an HTTP request, transforming variables, or branching on conditions. Workflows are suitable for complex multi-step pipelines that benefit from explicit control flow.
+  </Card>
+</CardGroup>
+
+## Knowledge Base (Datasets)
+
+A Knowledge Base is a collection of documents that have been chunked, embedded, and stored in a vector store. When attached to an app, Dify retrieves the most semantically relevant chunks at query time and injects them into the LLM context (RAG — retrieval-augmented generation).
+
+<AccordionGroup>
+  <Accordion title="Document ingestion">
+    Dify accepts PDFs, Markdown, plain text, HTML, Word documents, CSV files, and more. You can also sync content from Notion or crawl a URL. During ingestion, the document is split into chunks according to configurable segmentation rules, and each chunk is converted into an embedding vector.
+  </Accordion>
+  <Accordion title="Retrieval strategies">
+    Dify supports semantic search (vector similarity), full-text search, and a hybrid mode that combines both. You control the number of top-k results to retrieve and the score threshold below which results are discarded.
+  </Accordion>
+  <Accordion title="ETL backends">
+    By default, Dify uses its own document extraction pipeline (`ETL_TYPE=dify`). For more complex document formats such as PPTX, you can switch to Unstructured.io (`ETL_TYPE=Unstructured`) by providing an `UNSTRUCTURED_API_URL`.
+  </Accordion>
+</AccordionGroup>
+
+## Model providers
+
+Dify connects to LLMs and embedding models through a **Model Provider** abstraction. Once you add credentials for a provider, every app in your workspace can select models from that provider without storing keys in the app configuration.
+
+Supported provider types:
+
+- **LLM** — text generation and chat completion models (GPT-4o, Claude 3, Llama 3, Mistral, Gemini, and hundreds more).
+- **Text Embedding** — models used to vectorise document chunks and queries for semantic search.
+- **Rerank** — models that re-score retrieval results to improve relevance.
+- **Speech-to-Text** — transcription models.
+- **Text-to-Speech** — synthesis models for voice output.
+- **Image Generation** — models such as DALL·E 3 or Stable Diffusion.
+
+<Info>
+  Any OpenAI API-compatible endpoint can be added as a custom provider, which lets you connect local models served by Ollama, LM Studio, vLLM, or similar.
+</Info>
+
+## Workflows and nodes
+
+Workflows are the most powerful application type in Dify. They let you chain together heterogeneous operations with explicit control flow.
+
+### Built-in node types
+
+| Node | Purpose |
+|------|---------|
+| **LLM** | Call any configured LLM with a prompt template |
+| **Knowledge Retrieval** | Retrieve chunks from a Knowledge Base |
+| **Question Classifier** | Route inputs to different branches based on intent |
+| **Conditional Branch (IF/ELSE)** | Branch the graph on variable conditions |
+| **Code** | Execute Python or JavaScript in a sandboxed environment |
+| **HTTP Request** | Call external APIs |
+| **Template Transform** | Apply Jinja2 templates to transform variables |
+| **Variable Aggregator** | Merge outputs from parallel branches |
+| **Iteration** | Loop over a list of items |
+| **Parameter Extractor** | Extract structured fields from unstructured text |
+| **Document Extractor** | Parse uploaded files into text |
+| **Start / End** | Entry and exit points of the workflow |
+
+<Tip>
+  Workflows can call other workflows as sub-workflows (up to `WORKFLOW_CALL_MAX_DEPTH=5` levels deep), which lets you build modular, reusable pipeline components.
+</Tip>
+
+## Agents and tools
+
+An Agent application gives the LLM the ability to use tools autonomously. You define the agent's goal in the system prompt and attach one or more tools. At each step the model decides whether to call a tool or produce a final answer.
+
+### Tool categories
+
+- **Built-in tools** — over 50 pre-integrated tools including Google Search, Wikipedia, Bing, DALL·E, Stable Diffusion, WolframAlpha, and weather APIs.
+- **API tools** — custom tools defined by importing an OpenAPI/Swagger specification or by providing individual endpoint details.
+- **Workflow tools** — existing Workflow apps exposed as callable tools.
+
+## Plugins
+
+Plugins extend Dify's capabilities by packaging models, tools, agents, or custom endpoints into distributable units. They are managed through the **Marketplace** (`marketplace.dify.ai`) or installed from a local package file (`.difypkg`).
+
+The Plugin Daemon (`plugin_daemon` service) manages plugin lifecycle — installation, execution, and sandboxed communication with the API service.
+
+<Warning>
+  The `PLUGIN_DAEMON_KEY` and `PLUGIN_DIFY_INNER_API_KEY` must match between the `api` and `plugin_daemon` services. Changing one without updating the other will break agent nodes that call plugins.
+</Warning>
+
+## Variables
+
+Variables are typed, named values that flow between nodes in a workflow or that users supply as inputs to an app.
+
+<AccordionGroup>
+  <Accordion title="Input variables">
+    Defined in the **Start** node of a workflow or in the **User Input** section of a Chatbot/Text Generator. They are filled by the end user (or by the API caller via the `inputs` object) before execution begins.
+
+    Supported types: `string`, `number`, `select` (enum), `paragraph` (multi-line text), `file`, `file-list`.
+  </Accordion>
+  <Accordion title="Environment variables">
+    Key-value pairs stored at the app level for sensitive or environment-specific configuration — for example, an API key used in an HTTP Request node. Environment variables are not exposed to end users and are never included in exported DSL files.
+  </Accordion>
+  <Accordion title="System variables">
+    Built-in variables automatically populated at runtime: `sys.query` (the user's current message), `sys.conversation_id`, `sys.user_id`, `sys.files` (uploaded files), and others.
+  </Accordion>
+</AccordionGroup>
+
+## API keys
+
+Dify has two distinct types of API keys:
+
+<CardGroup cols={2}>
+  <Card title="App API keys" icon="key">
+    Scoped to a single application. Used by client code to call the app's `/chat-messages`, `/completion-messages`, or `/workflows/run` endpoints. Generated in the app's **API Access** settings. Rotate these keys independently per app without affecting others.
+  </Card>
+  <Card title="Workspace / system keys" icon="shield">
+    Used to manage workspace resources — creating apps, managing knowledge bases, listing models, and so on — via the management API. These are not exposed in the standard chat/completion flow.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Keep App API keys confidential. They authorise requests billed to your model provider accounts. Do not embed them in client-side code or public repositories.
+</Warning>

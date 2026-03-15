@@ -1,0 +1,136 @@
+---
+title: 'Workflow nodes overview'
+description: 'Understand the building blocks of Dify workflows: node types, connections, variable referencing, and execution model.'
+---
+
+A **node** is the fundamental processing unit in a Dify workflow. Nodes are connected by **edges** to form a directed graph. When a workflow runs, execution travels along those edges, passing data between nodes through a shared variable pool.
+
+## Node categories
+
+<CardGroup cols={2}>
+  <Card title="LLM" icon="brain" href="/workflow-nodes/llm">
+    Invoke a language model with a system prompt and user message. Supports vision input, context injection, memory, and structured JSON output.
+  </Card>
+  <Card title="Knowledge retrieval" icon="database" href="/workflow-nodes/knowledge-retrieval">
+    Query one or more knowledge bases and retrieve the most relevant document segments for downstream use.
+  </Card>
+  <Card title="Code" icon="code" href="/workflow-nodes/code">
+    Execute sandboxed Python 3 or JavaScript (ES6) code to transform data, parse JSON, or perform custom logic.
+  </Card>
+  <Card title="HTTP request" icon="globe" href="/workflow-nodes/http-request">
+    Make HTTP calls to external APIs using GET, POST, PUT, PATCH, or DELETE. Supports auth and variable interpolation.
+  </Card>
+  <Card title="Agent" icon="robot" href="/workflow-nodes/agent">
+    Embed an autonomous agent that selects and calls tools iteratively until it reaches a final answer.
+  </Card>
+  <Card title="Iteration" icon="repeat" href="/workflow-nodes/iteration">
+    Loop over an array and run a sub-workflow for each item, optionally in parallel.
+  </Card>
+  <Card title="Conditional (IF/ELSE)" icon="split" href="/workflow-nodes/conditional">
+    Branch execution based on string, number, array, or boolean conditions with AND/OR logic.
+  </Card>
+</CardGroup>
+
+## Special nodes
+
+### Start node
+
+Every workflow has exactly one **Start** node. It is the entry point from which execution begins. The Start node defines the input variables that users or callers supply when triggering the workflow.
+
+```json
+{
+  "type": "start",
+  "variables": [
+    { "variable": "query", "type": "text-input", "required": true },
+    { "variable": "language", "type": "select", "options": ["en", "fr", "de"] }
+  ]
+}
+```
+
+### End node
+
+The **End** node marks a terminal point and defines the final output variables returned by the workflow. A workflow can have multiple End nodes reached through different branches.
+
+### Answer node
+
+In chatflow applications the **Answer** node streams a response back to the user incrementally, rather than waiting for the full workflow to complete. Multiple Answer nodes can exist in a single workflow to handle different branches.
+
+## Connecting nodes with edges
+
+An edge connects the **output handle** of one node to the **input handle** of another. The graph engine resolves the execution order by following these directed edges.
+
+- **Sequential execution**: a single path of edges runs nodes one after another.
+- **Parallel branches**: a node with multiple outgoing edges (e.g., an IF/ELSE node) can spawn independent branches that execute concurrently.
+
+## Node configuration
+
+Every node shares a common configuration envelope:
+
+| Field | Description |
+|---|---|
+| `id` | Unique identifier within the workflow graph |
+| `type` | Node type string (e.g., `llm`, `code`, `http-request`) |
+| `data` | Type-specific configuration object |
+| `title` | Human-readable label shown in the UI |
+| `desc` | Optional description |
+
+### Inputs
+
+Nodes receive data either from workflow variables (referenced by selector paths) or from inline constant values. How inputs are wired depends on the node type—most nodes let you mix variable references and literal strings inside templates.
+
+### Outputs
+
+When a node finishes successfully its outputs are written to the variable pool under its node ID. Downstream nodes can then read those values using the variable reference syntax.
+
+### Error handling
+
+Nodes support two error strategies:
+
+- **Fail fast** (default): a node failure immediately stops the entire workflow run and marks it as failed.
+- **Continue on error**: the node is marked as failed but the workflow continues. The node's outputs are populated with empty or default values.
+
+The Iteration node has additional per-item error modes—see [Iteration](/workflow-nodes/iteration).
+
+## Variable referencing
+
+Nodes reference outputs from earlier nodes using the double-brace selector syntax:
+
+```
+{{#node_id.output_key#}}
+```
+
+For example, if an LLM node with ID `llm_1` produces a `text` output, downstream nodes can use:
+
+```
+{{#llm_1.text#}}
+```
+
+System variables provided by the runtime are referenced under the `sys` namespace:
+
+| Variable | Description |
+|---|---|
+| `{{#sys.query#}}` | The user's most recent message |
+| `{{#sys.conversation_id#}}` | Current conversation ID (chatflow only) |
+| `{{#sys.user_id#}}` | Authenticated user ID |
+| `{{#sys.files#}}` | Files uploaded with the current message |
+
+Start node input variables are referenced under their variable name directly:
+
+```
+{{#start_node_id.variable_name#}}
+```
+
+## Workflow execution model
+
+The **GraphEngine** drives execution:
+
+1. Execution begins at the Start node.
+2. Each node runs and writes its outputs to the variable pool.
+3. Outgoing edges are resolved and the next nodes are queued.
+4. When a node has multiple incoming edges, it waits until all predecessor branches have completed.
+5. Parallel branches run concurrently up to the configured worker pool size.
+6. Execution ends when all paths reach an End or Answer node, or when a node fails (in fail-fast mode).
+
+<Note>
+The maximum number of execution steps and total run time are configurable via `WORKFLOW_MAX_EXECUTION_STEPS` and `WORKFLOW_MAX_EXECUTION_TIME`. Exceeding either limit terminates the run.
+</Note>

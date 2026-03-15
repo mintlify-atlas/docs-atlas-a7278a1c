@@ -1,0 +1,107 @@
+---
+title: Upload File
+description: Upload a file to Dify for use in chat messages or workflow inputs.
+---
+
+## Endpoint
+
+```
+POST /files/upload
+```
+
+Uploaded files can then be referenced in subsequent chat or workflow requests using the returned file ID.
+
+## Request
+
+This endpoint uses `multipart/form-data` encoding.
+
+<ParamField body="file" type="file" required>
+  The file to upload. Only one file per request is allowed.
+</ParamField>
+
+<ParamField body="user" type="string" required>
+  The end user identifier. Defined by your application.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  The uploaded file ID. Use this as `upload_file_id` when attaching files to messages.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Original filename.
+</ResponseField>
+
+<ResponseField name="size" type="integer">
+  File size in bytes.
+</ResponseField>
+
+<ResponseField name="extension" type="string">
+  File extension (e.g., `pdf`, `png`).
+</ResponseField>
+
+<ResponseField name="mime_type" type="string">
+  MIME type of the file (e.g., `application/pdf`, `image/png`).
+</ResponseField>
+
+<ResponseField name="created_by" type="string">
+  ID of the user who uploaded the file.
+</ResponseField>
+
+<ResponseField name="created_at" type="integer">
+  Unix timestamp of upload.
+</ResponseField>
+
+## Errors
+
+| Status | Code | Description |
+|---|---|---|
+| 400 | `no_file_uploaded` | No file was included in the request. |
+| 400 | `too_many_files` | Only one file can be uploaded per request. |
+| 413 | `file_too_large` | The file exceeds the maximum allowed size. |
+| 415 | `unsupported_file_type` | The file format is not supported. |
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/files/upload \
+  -H 'Authorization: Bearer {api_key}' \
+  -F 'file=@/path/to/document.pdf;type=application/pdf' \
+  -F 'user=user-abc123'
+```
+
+```json Response
+{
+  "id": "72fa9fb8-8132-4f4f-b7b9-e943a7a5906c",
+  "name": "document.pdf",
+  "size": 153472,
+  "extension": "pdf",
+  "mime_type": "application/pdf",
+  "created_by": "user-abc123",
+  "created_at": 1705395332
+}
+```
+
+## Using the File in a Message
+
+After uploading, reference the file by its ID in a chat message:
+
+```bash
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "Please summarize this document.",
+    "inputs": {},
+    "response_mode": "blocking",
+    "user": "user-abc123",
+    "files": [
+      {
+        "type": "document",
+        "transfer_method": "local_file",
+        "upload_file_id": "72fa9fb8-8132-4f4f-b7b9-e943a7a5906c"
+      }
+    ]
+  }'
+```

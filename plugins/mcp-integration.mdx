@@ -1,0 +1,192 @@
+---
+title: MCP Integration
+description: Connect Dify to any MCP (Model Context Protocol) server to use its tools in agents and workflows.
+---
+
+## What Is MCP?
+
+The **Model Context Protocol (MCP)** is an open standard originally developed by Anthropic that defines how AI applications connect to external tools and context providers. An MCP server exposes a set of callable tools over a network transport, and any MCP-compatible client can discover and invoke those tools without provider-specific integration code.
+
+Dify implements a full MCP client in `core/mcp/`. It supports both transport types defined in the protocol:
+
+| Transport | Description |
+|-----------|-------------|
+| **Streamable HTTP** (`/mcp` path) | The preferred modern transport. Uses HTTP with streaming responses. |
+| **SSE** (`/sse` path) | Server-Sent Events. Used by older MCP servers and some hosted services. |
+
+The client (`MCPClient` in `core/mcp/mcp_client.py`) automatically detects which transport to use based on the URL path. If the path does not match either, it tries SSE first and falls back to Streamable HTTP.
+
+---
+
+## Supported Protocol Versions
+
+Dify's MCP client supports protocol versions `2024-11-05`, `2025-03-26`, and `2025-06-18`. When connecting, it negotiates the version with the server and uses the highest mutually supported version.
+
+---
+
+## Adding an MCP Server
+
+<Steps>
+  <Step title="Open the Tools section">
+    Navigate to **Workspace → Tools**. In the top navigation, select the **MCP** tab.
+  </Step>
+  <Step title="Click Add MCP Server">
+    Click **+ Add Server**.
+  </Step>
+  <Step title="Enter server details">
+    Fill in the form:
+
+    | Field | Description | Example |
+    |-------|-------------|----------|
+    | **Name** | Display name shown in tool selectors | `My GitHub MCP` |
+    | **Server URL** | Full URL of the MCP server endpoint | `https://mcp.example.com/mcp` |
+    | **Icon** | Optional emoji or image for the provider | 🔧 |
+  </Step>
+  <Step title="Configure authentication">
+    Select the authentication method your MCP server requires (see [Authentication](#authentication) below).
+  </Step>
+  <Step title="Save and sync tools">
+    Click **Save**. Dify connects to the server, calls `tools/list`, and imports all available tools into the workspace. The tools appear under the MCP provider in the tool browser.
+  </Step>
+</Steps>
+
+---
+
+## Authentication
+
+Dify supports three authentication methods for MCP servers.
+
+<Tabs>
+  <Tab title="No Auth">
+    No credentials are sent. Suitable for local MCP servers or servers running on a private network.
+
+    Select **None** in the authentication dropdown.
+  </Tab>
+
+  <Tab title="API Key">
+    Sends a static token in the `Authorization` header with every request:
+
+    ```
+    Authorization: Bearer <your-token>
+    ```
+
+    Select **API Key**, enter your token, and save.
+
+    <Note>
+    The header name and prefix are fixed to `Authorization: Bearer`. If your server expects a different header or scheme, use a reverse proxy to rewrite it.
+    </Note>
+  </Tab>
+
+  <Tab title="OAuth 2.0">
+    Dify supports the full OAuth 2.0 authorization code flow with PKCE for MCP servers that implement the MCP OAuth spec.
+
+    The flow:
+    1. You click **Authorize** after adding the server URL.
+    2. Dify registers as an OAuth client with the server's dynamic client registration endpoint (if available).
+    3. You are redirected to the server's authorization page to grant access.
+    4. After authorization, Dify receives tokens and stores them encrypted in the database.
+    5. Tokens are automatically refreshed using the stored refresh token when they expire.
+
+    The OAuth state and token storage entities are defined in `core/mcp/entities.py` (`OAuthCallbackState`, `OAuthClientInformation`, `OAuthTokens`).
+
+    <Info>
+    The OAuth redirect URI is `{CONSOLE_API_URL}/console/api/mcp/oauth/callback`. Ensure this URL is registered as an allowed redirect URI on your OAuth server.
+    </Info>
+  </Tab>
+</Tabs>
+
+---
+
+## Authentication Retry
+
+Dify's `MCPClientWithAuthRetry` (in `core/mcp/auth_client.py`) automatically handles token expiry. If a tool call or tool listing returns an `MCPAuthError`, the client:
+
+1. Refreshes the OAuth tokens.
+2. Reconnects to the MCP server with the new token.
+3. Retries the original operation.
+
+This happens transparently without user intervention. If the retry also fails, the error is surfaced to the agent or workflow.
+
+---
+
+## Using MCP Tools in Workflows and Agents
+
+Once an MCP server is connected and its tools are synced, the tools behave identically to any other tool in Dify.
+
+### In an Agent
+
+1. Open your agent app and go to the **Tools** configuration section.
+2. Click **Add Tool** and filter by **MCP** in the provider type selector.
+3. Select the tools you want the agent to have access to.
+4. Save the app.
+
+### In a Workflow
+
+1. Add a **Tool** node to the workflow canvas.
+2. In the node settings, select **MCP** as the provider type, then pick the MCP server and specific tool.
+3. Map the workflow variables to the tool's input parameters.
+4. Connect the tool's output to downstream nodes.
+
+---
+
+## Refreshing Tool List
+
+MCP servers can add or remove tools. To update the tool list in Dify without removing and re-adding the server:
+
+1. Go to **Workspace → Tools → MCP**.
+2. Find the server and click the **Sync** (refresh) icon.
+
+Dify calls `tools/list` again and updates the available tools, adding new ones and removing any that are no longer present.
+
+---
+
+## MCP Server Configuration Reference
+
+```json
+{
+  "name": "My MCP Server",
+  "server_url": "https://mcp.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer sk-..."
+  },
+  "timeout": 30,
+  "sse_read_timeout": 300
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `server_url` | string | — | Full URL of the MCP endpoint |
+| `headers` | object | `{}` | Additional HTTP headers sent with every request |
+| `timeout` | float | `30` | Connection timeout in seconds |
+| `sse_read_timeout` | float | `300` | How long to wait for SSE messages before the connection is considered stale |
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused or timeout">
+    - Verify the server URL is reachable from the Dify API container.
+    - For local MCP servers, use `http://host.docker.internal:<port>` instead of `localhost` when Dify runs in Docker.
+    - Check that the path matches the transport (`/mcp` for Streamable HTTP, `/sse` for SSE).
+  </Accordion>
+
+  <Accordion title="Authentication error after adding the server">
+    - For API key auth, confirm the token is correct and includes any required prefix (e.g. `Bearer `).
+    - For OAuth, ensure the redirect URI `{CONSOLE_API_URL}/console/api/mcp/oauth/callback` is registered with your OAuth provider.
+    - Check the Dify API logs for the specific error from the MCP server.
+  </Accordion>
+
+  <Accordion title="Tools not appearing after Save">
+    - Confirm the MCP server is running and the `tools/list` endpoint returns data.
+    - Check that the server implements the MCP protocol version Dify supports (`2024-11-05` or later).
+    - Try the **Sync** button to force a tool list refresh.
+  </Accordion>
+
+  <Accordion title="Tool call fails with MCPAuthError">
+    Dify will attempt one automatic token refresh and retry. If the retry also fails, verify that:
+    - The OAuth refresh token has not expired or been revoked.
+    - The authorization server is reachable from the Dify API container.
+  </Accordion>
+</AccordionGroup>

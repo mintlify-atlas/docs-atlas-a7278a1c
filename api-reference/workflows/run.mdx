@@ -1,0 +1,128 @@
+---
+title: Run Workflow
+description: Execute a workflow and return its outputs.
+---
+
+<Note>
+This endpoint is for **Workflow** application types only.
+</Note>
+
+## Endpoint
+
+```
+POST /workflows/run
+```
+
+## Request
+
+<ParamField body="inputs" type="object" required>
+  Key-value pairs for the workflow's input variables. Must include all required input nodes defined in the workflow.
+</ParamField>
+
+<ParamField body="response_mode" type="string" required>
+  Response delivery mode:
+  - `blocking` — wait for the workflow to complete before returning.
+  - `streaming` — stream workflow events using Server-Sent Events (SSE).
+</ParamField>
+
+<ParamField body="user" type="string" required>
+  A unique identifier for the end user. Defined by your application.
+</ParamField>
+
+<ParamField body="files" type="array">
+  Files to pass as workflow inputs. Each object:
+  - `type` (string) — file type, e.g. `image` or `document`.
+  - `transfer_method` (string) — `remote_url` or `local_file`.
+  - `url` (string) — file URL (when `transfer_method` is `remote_url`).
+  - `upload_file_id` (string) — file ID from the upload endpoint (when `transfer_method` is `local_file`).
+</ParamField>
+
+## Response
+
+### Blocking mode
+
+<ResponseField name="workflow_run_id" type="string">
+  Unique ID of this workflow run.
+</ResponseField>
+
+<ResponseField name="task_id" type="string">
+  Task ID, used to stop streaming runs.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Workflow run result.
+
+  <Expandable title="data object">
+    <ResponseField name="id" type="string">Workflow run ID.</ResponseField>
+    <ResponseField name="workflow_id" type="string">Workflow definition ID.</ResponseField>
+    <ResponseField name="status" type="string">Execution status: `succeeded`, `failed`, `stopped`.</ResponseField>
+    <ResponseField name="outputs" type="object">Key-value map of workflow output values.</ResponseField>
+    <ResponseField name="error" type="string">Error message if the run failed.</ResponseField>
+    <ResponseField name="elapsed_time" type="number">Total execution time in seconds.</ResponseField>
+    <ResponseField name="total_tokens" type="integer">Total tokens consumed.</ResponseField>
+    <ResponseField name="total_steps" type="integer">Number of steps executed.</ResponseField>
+    <ResponseField name="created_at" type="integer">Unix timestamp when the run started.</ResponseField>
+    <ResponseField name="finished_at" type="integer">Unix timestamp when the run finished.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Streaming mode
+
+SSE stream. Key event types:
+
+| Event | Description |
+|---|---|
+| `workflow_started` | Workflow execution has begun. |
+| `node_started` | A workflow node started execution. |
+| `node_finished` | A workflow node completed execution. |
+| `workflow_finished` | Workflow execution completed. Contains final outputs. |
+| `error` | An error occurred. |
+
+## Examples
+
+<CodeGroup>
+
+```bash Blocking
+curl -X POST https://api.dify.ai/v1/workflows/run \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "inputs": {"document_url": "https://example.com/report.pdf"},
+    "response_mode": "blocking",
+    "user": "user-abc123"
+  }'
+```
+
+```bash Streaming
+curl -X POST https://api.dify.ai/v1/workflows/run \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "inputs": {"topic": "climate change"},
+    "response_mode": "streaming",
+    "user": "user-abc123"
+  }'
+```
+
+</CodeGroup>
+
+```json Blocking Response
+{
+  "workflow_run_id": "djflajgkldjgd",
+  "task_id": "9da23599-e713-473b-982c-4328d4f5c78a",
+  "data": {
+    "id": "djflajgkldjgd",
+    "workflow_id": "19eff3db-6c23-4ffe-b981-1234abcd",
+    "status": "succeeded",
+    "outputs": {
+      "summary": "This document covers quarterly results..."
+    },
+    "error": null,
+    "elapsed_time": 3.42,
+    "total_tokens": 512,
+    "total_steps": 5,
+    "created_at": 1705395332,
+    "finished_at": 1705395336
+  }
+}
+```

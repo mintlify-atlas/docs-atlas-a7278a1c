@@ -1,0 +1,182 @@
+---
+title: 'LLM node'
+description: 'Invoke a language model with a prompt, context, and optional structured output inside a Dify workflow.'
+---
+
+The **LLM node** sends a prompt to a language model and returns the generated text. It is the core reasoning unit of most workflows.
+
+## Configuration
+
+### Model selection
+
+Choose a provider and model from the models configured in your workspace. The node requires a model that supports the `chat` or `completion` LLM mode.
+
+```json
+{
+  "model": {
+    "provider": "openai",
+    "name": "gpt-4o",
+    "mode": "chat",
+    "completion_params": {
+      "temperature": 0.7,
+      "max_tokens": 2048
+    }
+  }
+}
+```
+
+### Prompt template
+
+For chat models the prompt is a list of messages. Each message has a role (`system`, `user`, or `assistant`) and a text body. You can interpolate workflow variables anywhere in the text:
+
+```
+System: You are a helpful assistant that answers questions about {{#start.topic#}}.
+
+User: {{#sys.query#}}
+```
+
+For completion models the prompt is a single template string.
+
+#### Jinja2 templates
+
+When you need conditional logic or loops inside your prompt, switch a message to **Jinja2** mode. Variables referenced in Jinja2 syntax must be declared in `prompt_config.jinja2_variables`.
+
+```jinja2
+{% for item in items %}
+- {{ item }}
+{% endfor %}
+```
+
+### Vision input
+
+Enable **vision** to attach image files to the LLM request. When enabled, the node reads files from the variable selector (defaults to `sys.files`) and includes them as image content parts in the user message.
+
+```json
+{
+  "vision": {
+    "enabled": true,
+    "configs": {
+      "variable_selector": ["sys", "files"],
+      "detail": "high"
+    }
+  }
+}
+```
+
+The `detail` field controls image resolution sent to the model—`high` or `low`.
+
+### Context (knowledge retrieval attachment)
+
+When you have a Knowledge Retrieval node earlier in the workflow, pipe its `result` output into the LLM node's **context** slot. The node automatically formats the retrieved segments and prepends them to the system prompt.
+
+```json
+{
+  "context": {
+    "enabled": true,
+    "variable_selector": ["knowledge_node_id", "result"]
+  }
+}
+```
+
+### Memory (chat workflows)
+
+In chatflow applications you can enable **memory** so the LLM node includes recent conversation history in its prompt. The `window` object controls how many previous messages are included.
+
+```json
+{
+  "memory": {
+    "window": {
+      "enabled": true,
+      "size": 10
+    },
+    "role_prefix": {
+      "user": "Human",
+      "assistant": "AI"
+    }
+  }
+}
+```
+
+<Note>
+Memory is only available in chatflow-type apps where a `conversation_id` system variable is present. In pure workflow apps this field has no effect.
+</Note>
+
+## Outputs
+
+| Output key | Type | Description |
+|---|---|---|
+| `text` | string | The model's generated text response |
+| `usage` | object | Token counts and cost metadata |
+| `finish_reason` | string | Stop reason reported by the model (`stop`, `length`, etc.) |
+| `reasoning_content` | string | Chain-of-thought reasoning (when model supports it) |
+| `structured_output` | object | Parsed JSON when structured output mode is enabled |
+
+Reference text output in downstream nodes:
+
+```
+{{#llm_node_id.text#}}
+```
+
+## Structured output
+
+When you need the model to return a specific JSON shape, enable **structured output** and provide a JSON Schema definition.
+
+<Steps>
+  <Step title="Enable structured output">
+    Set `structured_output_enabled` (aliased as `structured_output_switch_on`) to `true` in the node configuration.
+  </Step>
+  <Step title="Define the schema">
+    Provide a JSON Schema in the `structured_output` field describing the expected response object:
+
+    ```json
+    {
+      "type": "object",
+      "properties": {
+        "sentiment": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+        "confidence": { "type": "number" },
+        "summary": { "type": "string" }
+      },
+      "required": ["sentiment", "confidence", "summary"]
+    }
+    ```
+  </Step>
+  <Step title="Reference structured fields">
+    Individual fields of the parsed object are accessible as sub-keys:
+
+    ```
+    {{#llm_node_id.structured_output.sentiment#}}
+    {{#llm_node_id.structured_output.confidence#}}
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Structured output requires model support for JSON mode or function calling. Not all providers support this feature. If the model cannot return valid JSON matching your schema, the node will fail.
+</Warning>
+
+## Reasoning format
+
+For models that expose chain-of-thought reasoning (e.g., o1, DeepSeek-R1), the `reasoning_format` field controls how the reasoning content is included in the output:
+
+| Value | Behavior |
+|---|---|
+| `separated` | The `text` output contains clean response text without `<think>` tags. Reasoning is available separately in `reasoning_content`. |
+| `tagged` | The `text` output preserves raw `<think>...</think>` tags alongside the response. Reasoning is also in `reasoning_content`. |
+
+The default is `tagged` for backward compatibility.
+
+## Token usage
+
+The `usage` output object includes:
+
+```json
+{
+  "prompt_tokens": 320,
+  "completion_tokens": 148,
+  "total_tokens": 468,
+  "total_price": "0.000234",
+  "currency": "USD"
+}
+```
+
+Token usage is also recorded in workflow execution metadata and contributes to workspace quota tracking.

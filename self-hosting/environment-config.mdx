@@ -1,0 +1,272 @@
+---
+title: Environment configuration
+description: Reference for key environment variables that control a self-hosted Dify deployment.
+---
+
+Dify is configured entirely through environment variables. Copy `docker/.env.example` to `docker/.env` and edit it before starting services. This page documents the most important production settings.
+
+<Tip>
+The `.env.example` file contains inline comments for every variable. Read it alongside this reference for additional context.
+</Tip>
+
+## Required settings
+
+These must be set before running Dify in production.
+
+```bash .env
+# Signing key for session cookies and encrypted database values.
+# Generate with: openssl rand -base64 42
+# NEVER use the default value in production.
+SECRET_KEY=
+
+# Database credentials
+DB_USERNAME=postgres
+DB_PASSWORD=
+DB_HOST=db_postgres
+DB_PORT=5432
+DB_DATABASE=dify
+
+# Redis credentials
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+CELERY_BROKER_URL=redis://:<REDIS_PASSWORD>@redis:6379/1
+```
+
+## Server settings
+
+```bash .env
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL=INFO
+
+# Deployment environment label shown in the UI
+# PRODUCTION or TESTING
+DEPLOY_ENV=PRODUCTION
+
+# Run database migrations on startup (recommended: true)
+MIGRATION_ENABLED=true
+
+# Gunicorn request timeout (seconds). 360 recommended for SSE.
+GUNICORN_TIMEOUT=360
+
+# Number of API worker processes
+SERVER_WORKER_AMOUNT=1
+
+# Number of Celery workers
+CELERY_WORKER_AMOUNT=1
+```
+
+## Database configuration
+
+Dify supports PostgreSQL (default), MySQL, and OceanBase.
+
+```bash .env
+# Supported: postgresql, mysql, oceanbase
+DB_TYPE=postgresql
+
+DB_USERNAME=postgres
+DB_PASSWORD=your-password
+DB_HOST=db_postgres
+DB_PORT=5432
+DB_DATABASE=dify
+
+# Connection pool tuning
+SQLALCHEMY_POOL_SIZE=30
+SQLALCHEMY_MAX_OVERFLOW=10
+SQLALCHEMY_POOL_RECYCLE=3600
+```
+
+## Redis configuration
+
+Redis is used for session caching, Celery task queuing, and real-time pub/sub.
+
+```bash .env
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=your-password
+REDIS_DB=0
+REDIS_USE_SSL=false
+
+# For Redis Sentinel high-availability
+REDIS_USE_SENTINEL=false
+REDIS_SENTINELS=sentinel1:26379,sentinel2:26379
+REDIS_SENTINEL_SERVICE_NAME=mymaster
+
+# For Redis Cluster
+REDIS_USE_CLUSTERS=false
+REDIS_CLUSTERS=node1:6379,node2:6379,node3:6379
+```
+
+## File storage configuration
+
+Dify uses [Apache OpenDAL](https://github.com/apache/opendal) as its storage abstraction layer.
+
+<Tabs>
+  <Tab title="Local filesystem (default)">
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=fs
+    OPENDAL_FS_ROOT=storage
+    ```
+
+    Files are stored in `volumes/app/storage` inside the Docker container. Not suitable for multi-instance deployments.
+  </Tab>
+  <Tab title="Amazon S3">
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=s3
+    S3_BUCKET_NAME=your-bucket
+    S3_REGION=us-east-1
+    S3_ACCESS_KEY=your-access-key
+    S3_SECRET_KEY=your-secret-key
+    # Use IAM roles instead of explicit credentials:
+    S3_USE_AWS_MANAGED_IAM=false
+    ```
+  </Tab>
+  <Tab title="Azure Blob Storage">
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=azblob
+    AZURE_BLOB_ACCOUNT_NAME=your-account
+    AZURE_BLOB_ACCOUNT_KEY=your-key
+    AZURE_BLOB_CONTAINER_NAME=your-container
+    AZURE_BLOB_ACCOUNT_URL=https://<account>.blob.core.windows.net
+    ```
+  </Tab>
+  <Tab title="Google Cloud Storage">
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=gcs
+    GOOGLE_STORAGE_BUCKET_NAME=your-bucket
+    # Base64-encoded service account JSON
+    GOOGLE_STORAGE_SERVICE_ACCOUNT_JSON_BASE64=
+    ```
+  </Tab>
+</Tabs>
+
+## Vector store configuration
+
+Set `VECTOR_STORE` to select the vector database for knowledge base embeddings.
+
+```bash .env
+# Supported values include:
+# weaviate (default), qdrant, milvus, pgvector, pgvecto-rs, chroma,
+# opensearch, elasticsearch, tencent, analyticdb, and many more.
+VECTOR_STORE=weaviate
+```
+
+<AccordionGroup>
+  <Accordion title="Weaviate (default)">
+    ```bash .env
+    WEAVIATE_ENDPOINT=http://weaviate:8080
+    WEAVIATE_API_KEY=your-api-key
+    ```
+  </Accordion>
+  <Accordion title="Qdrant">
+    ```bash .env
+    VECTOR_STORE=qdrant
+    QDRANT_URL=http://qdrant:6333
+    QDRANT_API_KEY=your-api-key
+    ```
+  </Accordion>
+  <Accordion title="Milvus">
+    ```bash .env
+    VECTOR_STORE=milvus
+    MILVUS_URI=http://milvus:19530
+    MILVUS_TOKEN=your-token
+    ```
+  </Accordion>
+  <Accordion title="pgvector">
+    ```bash .env
+    VECTOR_STORE=pgvector
+    PGVECTOR_HOST=pgvector
+    PGVECTOR_PORT=5432
+    PGVECTOR_USER=postgres
+    PGVECTOR_PASSWORD=your-password
+    PGVECTOR_DATABASE=dify
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Email configuration
+
+Required for password reset and member invitations.
+
+```bash .env
+# Supported: resend, smtp, sendgrid
+MAIL_TYPE=smtp
+MAIL_DEFAULT_SEND_FROM=no-reply@example.com
+
+# SMTP
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=465
+SMTP_USERNAME=your-username
+SMTP_PASSWORD=your-password
+SMTP_USE_TLS=true
+
+# Resend (alternative)
+# MAIL_TYPE=resend
+# RESEND_API_KEY=your-key
+```
+
+## Session and token settings
+
+```bash .env
+# Access token lifetime (minutes)
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# Refresh token lifetime (days)
+REFRESH_TOKEN_EXPIRE_DAYS=30
+
+# Member invitation link lifetime (hours)
+INVITE_EXPIRY_HOURS=72
+
+# Password reset token lifetime (minutes)
+RESET_PASSWORD_TOKEN_EXPIRY_MINUTES=5
+```
+
+## Feature flags
+
+```bash .env
+# Enable/disable code execution in workflows
+CODE_EXECUTION_ENDPOINT=http://sandbox:8194
+
+# Enable website crawling data sources
+ENABLE_WEBSITE_JINAREADER=true
+ENABLE_WEBSITE_FIRECRAWL=true
+
+# Workflow limits
+WORKFLOW_MAX_EXECUTION_STEPS=500
+WORKFLOW_MAX_EXECUTION_TIME=1200
+MAX_PARALLEL_LIMIT=10
+LOOP_NODE_MAX_COUNT=100
+
+# Allow embedding Dify web apps in iframes
+ALLOW_EMBED=false
+```
+
+## Nginx settings
+
+```bash .env
+NGINX_HTTPS_ENABLED=false
+NGINX_PORT=80
+NGINX_SSL_PORT=443
+NGINX_SSL_CERT_FILENAME=dify.crt
+NGINX_SSL_CERT_KEY_FILENAME=dify.key
+NGINX_SSL_PROTOCOLS=TLSv1.2 TLSv1.3
+NGINX_WORKER_PROCESSES=auto
+NGINX_CLIENT_MAX_BODY_SIZE=100M
+NGINX_PROXY_READ_TIMEOUT=3600s
+NGINX_PROXY_SEND_TIMEOUT=3600s
+```
+
+## OpenTelemetry (optional)
+
+Dify has built-in OpenTelemetry support for exporting infrastructure-level traces and metrics (separate from the per-app LLMOps tracing).
+
+```bash .env
+ENABLE_OTEL=false
+OTLP_BASE_ENDPOINT=http://localhost:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=
+OTEL_SAMPLING_RATE=0.1
+```

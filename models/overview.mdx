@@ -1,0 +1,103 @@
+---
+title: Models Overview
+description: Understand how Dify manages AI models, provider types, workspace defaults, and load balancing across multiple credentials.
+---
+
+Dify's model system provides a unified interface for interacting with dozens of AI model providers. Whether you are calling a cloud API or running a local model, the same abstraction applies across your entire workspace.
+
+## Model Types
+
+Dify classifies every model by its functional type. Each type maps to a distinct runtime invocation path in `core/model_manager.py`.
+
+<CardGroup cols={2}>
+  <Card title="LLM" icon="brain">
+    Large language models used for chat, completion, and tool-calling. The primary model type for agents and workflows.
+  </Card>
+  <Card title="Text Embedding" icon="vector-square">
+    Converts text into dense vector representations for similarity search and RAG pipelines.
+  </Card>
+  <Card title="Rerank" icon="sort">
+    Re-scores a set of retrieved passages to improve the relevance of RAG results before they reach the LLM.
+  </Card>
+  <Card title="Text-to-Speech" icon="volume">
+    Converts text output into audio. Voice selection and language filtering are supported.
+  </Card>
+  <Card title="Speech-to-Text" icon="microphone">
+    Transcribes audio input into text, typically used at the start of a voice-driven workflow.
+  </Card>
+  <Card title="Image Generation" icon="image">
+    Generates images from text prompts. Supported by providers such as OpenAI DALL-E and Stability AI.
+  </Card>
+  <Card title="Moderation" icon="shield">
+    Classifies text as safe or unsafe. Returns a boolean signal that workflows can branch on.
+  </Card>
+</CardGroup>
+
+## Provider Types
+
+Dify distinguishes between two ways a provider can supply credentials:
+
+| Type | Description |
+|------|-------------|
+| **System (Hosted)** | Dify Cloud manages the API key. Consumption is tracked against a quota (trial, free, or paid). No credentials required from the user. |
+| **Custom** | You supply your own API key. The key is stored encrypted per workspace and never shared. |
+
+When both types are available, Dify selects the active type according to this priority: custom > system with valid quota. You can override this preference in **Settings → Model Provider** by toggling the preferred provider type.
+
+## Workspace Defaults vs. App-Specific Models
+
+Every workspace maintains a set of **default models** — one per model type. These defaults are stored in `TenantDefaultModel` records and serve as the fallback whenever an application has not explicitly chosen a model.
+
+```
+Workspace default (e.g. gpt-4o for LLM)
+    └── App A inherits workspace default
+    └── App B overrides with claude-3-5-sonnet
+    └── App C overrides with a local Ollama model
+```
+
+To set workspace defaults, go to **Settings → Model Provider → System Model Settings**. You can configure separate defaults for:
+
+- **Inference** — the LLM used when no model is selected
+- **Embedding** — used by knowledge bases and RAG
+- **Reranking** — applied after vector retrieval
+- **Text-to-Speech** — for voice output nodes
+- **Speech-to-Text** — for voice input nodes
+
+Individual apps can override these defaults in their app settings or in the orchestration canvas.
+
+## Load Balancing
+
+For high-throughput production workloads, Dify supports **round-robin load balancing** across multiple API credentials for the same model.
+
+When load balancing is enabled for a model, `LBModelManager` in `core/model_manager.py` cycles through the configured credentials on every invocation. If a credential encounters a rate-limit error (`InvokeRateLimitError`), it is placed in a **cooldown** state for 60 seconds and skipped until it recovers. Authorization or connection errors trigger a shorter 10-second cooldown.
+
+<Info>
+Load balancing is available on the Enterprise plan. The toggle appears under **Settings → Model Provider** when your workspace has the feature enabled.
+</Info>
+
+### How round-robin works
+
+1. A Redis counter keyed by `model_lb_index:{tenant}:{provider}:{model_type}:{model}` increments on every request.
+2. The counter modulo the number of active credentials selects which credential to use.
+3. Credentials in cooldown are skipped. If all credentials are in cooldown, the last exception is re-raised to the caller.
+4. Policy compliance is checked before each credential is used; non-compliant credentials are also placed in cooldown.
+
+<Note>
+A special credential named `__inherit__` tells the load balancer to reuse the provider-level credential. This is useful when you want to add extra credentials without removing the primary one.
+</Note>
+
+## How Models Are Resolved
+
+When Dify needs a model instance, the resolution order is:
+
+<Steps>
+  <Step title="Explicit provider + model">
+    If the caller specifies both a provider name and a model name, `ModelManager.get_model_instance()` fetches the `ProviderModelBundle` directly and returns a `ModelInstance`.
+  </Step>
+  <Step title="Workspace default">
+    If no provider is specified, `ModelManager.get_default_model_instance()` reads the `TenantDefaultModel` record for the requested model type. If no record exists, the first available active model is used and the record is created automatically.
+  </Step>
+  <Step title="Credential resolution">
+    Credentials are fetched from the `ProviderConfiguration` (either custom or system), decrypted via RSA, and cached in Redis to minimise repeated decryption overhead.
+  </Step>
+</Steps>

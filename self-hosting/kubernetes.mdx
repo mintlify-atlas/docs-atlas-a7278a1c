@@ -1,0 +1,187 @@
+---
+title: Kubernetes deployment
+description: Deploy Dify on Kubernetes for high availability and horizontal scalability.
+---
+
+Kubernetes is recommended for production deployments that require high availability, horizontal scaling, or integration with existing cloud-native infrastructure.
+
+## Helm charts
+
+Several community-maintained Helm charts are available. Choose the one that best fits your needs:
+
+| Chart | Maintainer | Notes |
+|-------|------------|-------|
+| [douban/charts](https://github.com/douban/charts/tree/master/charts/dify) | @LeoQuote | Widely used, actively maintained |
+| [dify-helm](https://github.com/BorisPolonsky/dify-helm) | @BorisPolonsky | |
+| [ai-charts](https://github.com/magicsong/ai-charts) | @magicsong | |
+| [dify-kubernetes](https://github.com/Winson-030/dify-kubernetes) | @Winson-030 | Raw YAML manifests |
+| [dify-k8s](https://github.com/wyy-holding/dify-k8s) | @wyy-holding | Raw YAML manifests |
+| [DifyAI-Kubernetes](https://github.com/Zhoneym/DifyAI-Kubernetes) | @Zhoneym | Supports Dify v1.6.0+ |
+
+<Warning>
+These are community-maintained resources. Review the chart code and values before deploying to production. Dify does not officially support any specific Helm chart.
+</Warning>
+
+## Basic deployment steps
+
+<Steps>
+  <Step title="Add the Helm chart repository">
+    Steps vary by chart. For example, with the douban chart:
+
+    ```bash
+    helm repo add douban https://douban.github.io/charts/
+    helm repo update
+    ```
+  </Step>
+  <Step title="Create a values file">
+    Copy the chart's default `values.yaml` and customize it:
+
+    ```bash
+    helm show values douban/dify > my-values.yaml
+    ```
+
+    At minimum, configure:
+    - Database connection (host, credentials)
+    - Redis connection
+    - Storage backend
+    - Ingress hostname
+    - `SECRET_KEY`
+  </Step>
+  <Step title="Create Kubernetes secrets">
+    Store sensitive values as Kubernetes Secrets rather than in `values.yaml`:
+
+    ```bash
+    kubectl create secret generic dify-secrets \
+      --from-literal=SECRET_KEY=$(openssl rand -base64 42) \
+      --from-literal=DB_PASSWORD=your-db-password \
+      --from-literal=REDIS_PASSWORD=your-redis-password
+    ```
+
+    Reference these secrets in your `values.yaml` using `secretKeyRef`.
+  </Step>
+  <Step title="Install the chart">
+    ```bash
+    helm install dify douban/dify \
+      --namespace dify \
+      --create-namespace \
+      --values my-values.yaml
+    ```
+  </Step>
+  <Step title="Verify the deployment">
+    ```bash
+    kubectl get pods -n dify
+    kubectl get svc -n dify
+    ```
+
+    Wait until all pods reach `Running` status.
+  </Step>
+</Steps>
+
+## Configuring secrets
+
+Never store sensitive values in Helm values files committed to version control. Use Kubernetes Secrets or a secrets management solution:
+
+```yaml
+# Example: referencing a secret in a values.yaml
+api:
+  env:
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: dify-secrets
+          key: SECRET_KEY
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dify-secrets
+          key: DB_PASSWORD
+```
+
+For production, consider using [External Secrets Operator](https://external-secrets.io/) or [Vault](https://www.vaultproject.io/) to inject secrets from your secrets management system.
+
+## Ingress configuration
+
+Dify requires two ingress routes: one for the API/backend and one for the frontend. An example Nginx ingress configuration:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dify-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: console.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-web
+                port:
+                  number: 3000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+          - path: /console/api
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+```
+
+<Note>
+Dify SSE (Server-Sent Events) streams require long-lived HTTP connections. Set ingress proxy timeouts to at least 3600 seconds.
+</Note>
+
+## Persistent volume claims
+
+The following services require persistent storage:
+
+| Service | Purpose | Recommended storage class |
+|---------|---------|---------------------------|
+| PostgreSQL | Primary database | SSD-backed block storage |
+| Redis | Cache and queue | SSD-backed block storage |
+| API/Worker | Uploaded files (if using local storage) | ReadWriteMany NFS or object storage |
+| Vector store | Embedding data | SSD-backed block storage |
+
+For the `api` and `worker` services to share the same file storage volume, use a `ReadWriteMany` storage class or configure an external object storage backend (S3, Azure Blob, GCS) instead.
+
+## Horizontal scaling
+
+| Component | Scalable | Notes |
+|-----------|----------|-------|
+| `api` | Yes | Stateless. Scale horizontally behind a load balancer. |
+| `worker` | Yes | Stateless Celery workers. Scale based on queue depth. |
+| `web` | Yes | Stateless Next.js. Scale horizontally. |
+| PostgreSQL | Limited | Use a managed PostgreSQL service (RDS, Cloud SQL) for HA. |
+| Redis | Limited | Use a managed Redis service (ElastiCache, Cloud Memorystore) for HA. |
+| Vector store | Depends | Weaviate and Qdrant support clustering; pgvector scales with PostgreSQL. |
+
+```bash
+# Scale the API deployment
+kubectl scale deployment dify-api --replicas=3 -n dify
+
+# Scale workers
+kubectl scale deployment dify-worker --replicas=5 -n dify
+```
+
+## Terraform and cloud-specific deployments
+
+For cloud-specific deployments using infrastructure-as-code:
+
+- **Azure**: [dify-azure-terraform](https://github.com/nikawang/dify-azure-terraform)
+- **Google Cloud**: [dify-google-cloud-terraform](https://github.com/DeNA/dify-google-cloud-terraform)
+- **AWS (EKS)**: [solution-for-deploying-dify-on-aws](https://github.com/aws-samples/solution-for-deploying-dify-on-aws)
+- **AWS (ECS)**: [dify-self-hosted-on-aws](https://github.com/aws-samples/dify-self-hosted-on-aws)
+- **Alibaba Cloud**: [Alibaba Cloud Computing Nest](https://computenest.console.aliyun.com/service/instance/create/default?type=user&ServiceName=Dify%E7%A4%BE%E5%8C%BA%E7%89%88)

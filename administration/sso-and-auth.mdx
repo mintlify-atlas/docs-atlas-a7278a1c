@@ -1,0 +1,105 @@
+---
+title: SSO and authentication
+description: Configure authentication methods for your Dify deployment, including email/password, social login, SAML 2.0, and OIDC.
+---
+
+Dify supports multiple authentication methods. The options available depend on whether you are using Dify Cloud or a self-hosted deployment, and the plan tier of your workspace.
+
+## Default authentication
+
+Out of the box, Dify uses **email and password** authentication. Users register with an email address, verify it, and sign in with their credentials.
+
+### Password reset
+
+Users can reset their password from the sign-in page:
+
+1. Click **Forgot password** on the login page.
+2. Enter the registered email address.
+3. Receive a password reset link by email (valid for **5 minutes** by default).
+4. Click the link and set a new password.
+
+On self-hosted deployments, password reset requires a working email configuration (`MAIL_TYPE`, `SMTP_*`, or `RESEND_API_KEY`). See [Email configuration](#email-configuration) below.
+
+## Social login
+
+Dify supports social login via **GitHub** and **Google**. When enabled, users can sign in with their existing accounts without creating a separate Dify password.
+
+On self-hosted deployments, social login is disabled by default. To enable it, configure the OAuth provider credentials in your `.env` file and restart the API service.
+
+## SSO (Enterprise)
+
+Single sign-on is available on the **Enterprise plan** and self-hosted deployments with enterprise features enabled. Dify supports:
+
+- **SAML 2.0**: integrate with identity providers such as Okta, Azure AD, Google Workspace, and others that support SAML.
+- **OIDC (OpenID Connect)**: integrate with identity providers that support the OIDC protocol.
+
+SSO configuration is managed at the workspace level under **Settings → Authentication**.
+
+<Info>
+SSO configuration requires the Enterprise plan on Dify Cloud. For self-hosted deployments, SSO availability depends on the edition deployed. Contact [business@dify.ai](mailto:business@dify.ai) for enterprise licensing.
+</Info>
+
+## Session management
+
+Dify uses token-based sessions:
+
+| Token | Default lifetime | Environment variable |
+|-------|-----------------|---------------------|
+| Access token | 60 minutes | `ACCESS_TOKEN_EXPIRE_MINUTES` |
+| Refresh token | 30 days | `REFRESH_TOKEN_EXPIRE_DAYS` |
+
+When an access token expires, the client automatically exchanges the refresh token for a new access token. Signing out revokes the refresh token immediately.
+
+## Environment variables for authentication
+
+The following environment variables control authentication behavior on self-hosted deployments:
+
+```bash .env
+# Session token lifetimes
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+REFRESH_TOKEN_EXPIRE_DAYS=30
+
+# Password reset and invitation token lifetimes (in minutes)
+RESET_PASSWORD_TOKEN_EXPIRY_MINUTES=5
+EMAIL_REGISTER_TOKEN_EXPIRY_MINUTES=5
+INVITE_EXPIRY_HOURS=72
+
+# Set an initial admin password (only used during first-time setup)
+INIT_PASSWORD=
+```
+
+## Email configuration
+
+Email is required for password reset, member invitations, and ownership transfer notifications. Configure one of the following email providers:
+
+<Tabs>
+  <Tab title="SMTP">
+    ```bash .env
+    MAIL_TYPE=smtp
+    MAIL_DEFAULT_SEND_FROM=no-reply@example.com
+    SMTP_SERVER=smtp.example.com
+    SMTP_PORT=465
+    SMTP_USERNAME=your-username
+    SMTP_PASSWORD=your-password
+    SMTP_USE_TLS=true
+    ```
+  </Tab>
+  <Tab title="Resend">
+    ```bash .env
+    MAIL_TYPE=resend
+    MAIL_DEFAULT_SEND_FROM=no-reply@example.com
+    RESEND_API_KEY=your-resend-api-key
+    ```
+  </Tab>
+  <Tab title="SendGrid">
+    ```bash .env
+    MAIL_TYPE=sendgrid
+    MAIL_DEFAULT_SEND_FROM=no-reply@example.com
+    SENDGRID_API_KEY=your-sendgrid-api-key
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+If email is not configured, password reset and member invitation flows will fail silently. Always configure and test email before deploying to production.
+</Warning>

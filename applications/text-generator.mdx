@@ -1,0 +1,204 @@
+---
+title: 'Text generator'
+description: 'Build a single-turn content generation application with structured form inputs. Use the completion-messages API for writing assistance, summarization, translation, and other stateless text tasks.'
+---
+
+A Text Generator is a stateless, single-turn application. The user fills in a set of form fields, clicks **Run**, and the LLM generates text output based on a prompt template that incorporates the field values. There is no conversation history — each generation is independent.
+
+The underlying app mode is `completion`. The API endpoint is `POST /completion-messages`.
+
+## Use cases
+
+- Writing assistance (drafts, outlines, email templates)
+- Document summarization
+- Language translation
+- Code generation or explanation
+- Data extraction from pasted text
+- Structured content generation (product descriptions, job listings)
+
+## Configuration
+
+### Prompt template
+
+The prompt template defines what the LLM receives. Write the template in the **Prompt** editor. Reference input variables using double-brace syntax: `{{variable_name}}`.
+
+Example template:
+
+```
+You are a professional translator. Translate the following text from {{source_language}} to {{target_language}}.
+
+Text to translate:
+{{text}}
+
+Provide only the translated text without any explanation.
+```
+
+Use the **Preview** panel to test the template with sample values before publishing.
+
+### Input variables
+
+Define input variables in **User Input Form**. Each variable becomes a field in the generated form UI and a key in the `inputs` object of the API request.
+
+Supported variable types:
+
+| Type | API value | Description |
+|---|---|---|
+| Short text | `text-input` | Single-line text field with optional max length |
+| Paragraph | `paragraph` | Multi-line text area for longer inputs |
+| Number | `number` | Numeric input |
+| Dropdown | `select` | Predefined list of options |
+| File | `file` | Single file upload |
+| File list | `file-list` | Multiple file uploads |
+
+Each variable has:
+- **Label** — displayed to the user in the form
+- **Variable name** — the key used in the prompt template and API `inputs` object
+- **Required** — whether the field must be filled before generation runs
+- **Max length** (text and paragraph) — enforced client-side and server-side
+
+### Model and parameters
+
+Select the model and configure generation parameters under **Model**:
+
+- **Temperature** — higher values produce more varied output; lower values are more deterministic.
+- **Max tokens** — upper bound on response length.
+- **Top P** — nucleus sampling. Works alongside temperature.
+- **Presence/frequency penalty** — reduce repetition in long outputs.
+
+### More like this
+
+Enable **Features → More like this** to let users regenerate variations of the same output. When enabled, a **Generate more** button appears in the web UI after the initial result.
+
+## Batch generation
+
+The web UI supports bulk generation from a CSV file, which is useful for processing many inputs at once.
+
+<Steps>
+  <Step title="Prepare a CSV file">
+    Create a CSV where each column header matches one of your variable names. Each row is one generation job.
+
+    ```csv
+    source_language,target_language,text
+    English,French,"Hello, how are you?"
+    English,German,"The meeting is at 3pm."
+    English,Spanish,"Please review the attached document."
+    ```
+  </Step>
+  <Step title="Upload the CSV">
+    In the Text Generator web UI, switch to the **Batch** tab. Upload your CSV file.
+  </Step>
+  <Step title="Run batch generation">
+    Click **Run batch**. Dify processes each row sequentially and displays results as they complete. You can download the results as a CSV with an additional `output` column.
+  </Step>
+</Steps>
+
+<Note>Batch generation runs in the browser session. If you close the tab, the remaining jobs stop. For server-side batch processing, call `POST /completion-messages` in a loop from your own code.</Note>
+
+## Publishing
+
+Click **Publish** to make the application available. After publishing:
+
+- **Web app URL** — Dify hosts a form-based UI at your app's URL. Users fill in the form and see the generated output.
+- **Embedded widget** — Copy the embed snippet from **Access API → Embedded**.
+- **API** — Call the endpoint programmatically.
+
+## API integration
+
+`POST /completion-messages`
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.dify.ai/v1/completion-messages \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": {
+      "source_language": "English",
+      "target_language": "French",
+      "text": "Hello, how are you?"
+    },
+    "response_mode": "blocking",
+    "user": "user-123"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.dify.ai/v1/completion-messages",
+    headers={"Authorization": "Bearer app-your-api-key"},
+    json={
+        "inputs": {
+            "source_language": "English",
+            "target_language": "French",
+            "text": "Hello, how are you?",
+        },
+        "response_mode": "blocking",
+        "user": "user-123",
+    },
+)
+
+result = response.json()
+print(result["answer"])
+```
+
+```javascript JavaScript
+const response = await fetch("https://api.dify.ai/v1/completion-messages", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer app-your-api-key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    inputs: {
+      source_language: "English",
+      target_language: "French",
+      text: "Hello, how are you?",
+    },
+    response_mode: "blocking",
+    user: "user-123",
+  }),
+});
+
+const result = await response.json();
+console.log(result.answer);
+```
+
+</CodeGroup>
+
+**Request fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `inputs` | object | Yes | Key-value pairs matching your variable names. All required variables must be present |
+| `response_mode` | string | No | `"blocking"` (default) or `"streaming"` |
+| `user` | string | Yes | Your identifier for the end user |
+| `files` | array | No | Files attached to this generation request |
+
+**Blocking response:**
+
+```json
+{
+  "event": "message",
+  "task_id": "abc123",
+  "id": "msg-xyz",
+  "message_id": "msg-xyz",
+  "answer": "Bonjour, comment allez-vous ?",
+  "created_at": 1705000000
+}
+```
+
+### Stop a streaming generation
+
+`POST /completion-messages/{task_id}/stop`
+
+```bash
+curl -X POST https://api.dify.ai/v1/completion-messages/task-id-here/stop \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"user": "user-123"}'
+```
+
+<Warning>A Text Generator does not persist conversation state. Passing `conversation_id` to `POST /completion-messages` has no effect. If you need multi-turn interaction, use a Chatbot application instead.</Warning>

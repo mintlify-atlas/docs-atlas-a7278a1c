@@ -1,0 +1,289 @@
+---
+title: Supported Model Providers
+description: A comprehensive reference of all model providers supported by Dify, including the model types each provider supports.
+---
+
+Dify integrates with a broad ecosystem of model providers out of the box. Providers are split into two categories: **cloud/hosted** providers that require an API key, and **local/open-source** providers that you run in your own infrastructure.
+
+## Cloud Providers
+
+### OpenAI
+
+The most widely used provider in Dify deployments. Supports all model types.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| gpt-4o | LLM | Vision + tool-calling |
+| gpt-4o-mini | LLM | Cost-efficient |
+| gpt-4-turbo | LLM | 128k context |
+| gpt-4 | LLM | — |
+| gpt-3.5-turbo | LLM | Fastest, lowest cost |
+| text-embedding-3-large | Text Embedding | Best embedding quality |
+| text-embedding-3-small | Text Embedding | — |
+| text-embedding-ada-002 | Text Embedding | Legacy |
+| tts-1 / tts-1-hd | Text-to-Speech | Multiple voices |
+| whisper-1 | Speech-to-Text | — |
+| dall-e-3 / dall-e-2 | Image Generation | — |
+| omni-moderation-latest | Moderation | — |
+
+**Required credentials:** `api_key`. Optionally set `organization_id` for org-scoped usage.
+
+---
+
+### Anthropic
+
+Cloud provider with strong reasoning and instruction-following. Supports LLM only.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| claude-3-5-sonnet-20241022 | LLM | Vision + tool-calling |
+| claude-3-5-haiku-20241022 | LLM | Fast and cost-efficient |
+| claude-3-opus-20240229 | LLM | Highest capability |
+| claude-3-sonnet-20240229 | LLM | Balanced |
+| claude-3-haiku-20240307 | LLM | Lightweight |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Google (Gemini)
+
+Google's multimodal model family via AI Studio or Vertex AI.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| gemini-1.5-pro | LLM | 2M token context, vision |
+| gemini-1.5-flash | LLM | Fast, cost-efficient |
+| gemini-1.0-pro | LLM | — |
+| text-embedding-004 | Text Embedding | — |
+
+**Required credentials:** `google_api_key`.
+
+---
+
+### Azure OpenAI
+
+OpenAI models served via Microsoft Azure. Requires a separate deployment per model.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| gpt-4o (deployment) | LLM | Name is your Azure deployment name |
+| gpt-4 (deployment) | LLM | — |
+| gpt-35-turbo (deployment) | LLM | — |
+| text-embedding-ada-002 (deployment) | Text Embedding | — |
+| whisper (deployment) | Speech-to-Text | — |
+| dall-e-3 (deployment) | Image Generation | — |
+
+**Required credentials:** `openai_api_key`, `openai_api_base` (your Azure endpoint URL), `openai_api_version`, deployment name per model.
+
+---
+
+### AWS Bedrock
+
+Access foundation models via Amazon's managed API.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| anthropic.claude-3-5-sonnet-v2 | LLM | — |
+| anthropic.claude-3-opus | LLM | — |
+| amazon.titan-text-express-v1 | LLM | — |
+| amazon.titan-embed-text-v1 | Text Embedding | — |
+| cohere.rerank-english-v3 | Rerank | — |
+| stability.stable-diffusion-xl-v1 | Image Generation | — |
+
+**Required credentials:** `aws_access_key_id`, `aws_secret_access_key`, `aws_region`.
+
+---
+
+### Mistral AI
+
+| Model | Type | Notes |
+|-------|------|-------|
+| mistral-large-latest | LLM | Strongest reasoning |
+| mistral-medium-latest | LLM | — |
+| mistral-small-latest | LLM | — |
+| open-mistral-7b | LLM | — |
+| mistral-embed | Text Embedding | — |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Cohere
+
+| Model | Type | Notes |
+|-------|------|-------|
+| command-r-plus | LLM | — |
+| command-r | LLM | — |
+| embed-english-v3.0 | Text Embedding | — |
+| embed-multilingual-v3.0 | Text Embedding | — |
+| rerank-english-v3.0 | Rerank | — |
+| rerank-multilingual-v3.0 | Rerank | — |
+
+**Required credentials:** `api_key`.
+
+---
+
+### DeepSeek
+
+| Model | Type | Notes |
+|-------|------|-------|
+| deepseek-chat | LLM | — |
+| deepseek-reasoner | LLM | Chain-of-thought |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Groq
+
+Cloud inference with very fast token generation rates.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| llama-3.3-70b-versatile | LLM | — |
+| llama-3.1-8b-instant | LLM | — |
+| mixtral-8x7b-32768 | LLM | — |
+| gemma2-9b-it | LLM | — |
+| whisper-large-v3 | Speech-to-Text | — |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Perplexity
+
+| Model | Type | Notes |
+|-------|------|-------|
+| llama-3.1-sonar-large-128k-online | LLM | Web search built-in |
+| llama-3.1-sonar-small-128k-online | LLM | — |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Together AI
+
+Hosted open-source models with a unified API.
+
+| Model | Type | Notes |
+|-------|------|-------|
+| meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo | LLM | — |
+| mistralai/Mixtral-8x22B-Instruct-v0.1 | LLM | — |
+| togethercomputer/m2-bert-80M-8k-retrieval | Text Embedding | — |
+
+**Required credentials:** `api_key`.
+
+---
+
+### Hugging Face
+
+Deploy models from the Hugging Face Hub via Inference Endpoints.
+
+| Model Type | Notes |
+|------------|-------|
+| LLM | Any text-generation model deployed on an Inference Endpoint |
+| Text Embedding | Any feature-extraction model |
+
+**Required credentials:** `huggingfacehub_api_token`, endpoint URL.
+
+---
+
+### Replicate
+
+Run any model hosted on Replicate, including Llama variants.
+
+| Model Type | Notes |
+|------------|-------|
+| LLM | Llama 3, Mistral, Falcon, and custom models |
+| Image Generation | Stable Diffusion, FLUX, and others |
+
+**Required credentials:** `replicate_api_token`.
+
+---
+
+## Local / Open-Source Providers
+
+### Ollama
+
+Run any GGUF or Safetensors model locally. The most popular option for private deployments.
+
+| Model Type | Notes |
+|------------|-------|
+| LLM | llama3, mistral, gemma, phi3, qwen2, and many others |
+| Text Embedding | nomic-embed-text, mxbai-embed-large |
+
+**Required credentials:** `base_url` — default is `http://localhost:11434`.
+
+<Tip>
+For Docker-based Dify deployments accessing a host-installed Ollama, use `http://host.docker.internal:11434` as the base URL.
+</Tip>
+
+---
+
+### LM Studio
+
+LM Studio exposes an OpenAI-compatible API on port 1234 by default. Add it as a custom OpenAI-compatible provider.
+
+| Model Type | Notes |
+|------------|-------|
+| LLM | Any model loaded in LM Studio |
+| Text Embedding | Any embedding model loaded in LM Studio |
+
+**Base URL:** `http://localhost:1234/v1`
+
+---
+
+### LocalAI
+
+A drop-in OpenAI-compatible server for local model inference.
+
+**Base URL:** `http://localhost:8080/v1`
+
+---
+
+### vLLM
+
+High-throughput inference server. Expose via OpenAI-compatible mode.
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Meta-Llama-3-8B-Instruct \
+  --port 8000
+```
+
+**Base URL:** `http://localhost:8000/v1`
+
+---
+
+### Xinference
+
+Distributed model serving platform supporting LLMs, embeddings, and rerankers.
+
+| Model Type | Supported |
+|------------|----------|
+| LLM | Yes |
+| Text Embedding | Yes |
+| Rerank | Yes |
+| Image Generation | Yes |
+
+**Required credentials:** `server_url`, `model_uid`.
+
+---
+
+## Provider Capability Matrix
+
+| Provider | LLM | Embedding | Rerank | TTS | STT | Image Gen | Moderation |
+|----------|-----|-----------|--------|-----|-----|-----------|------------|
+| OpenAI | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| Anthropic | ✓ | — | — | — | — | — | — |
+| Google Gemini | ✓ | ✓ | — | — | — | — | — |
+| Azure OpenAI | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| AWS Bedrock | ✓ | ✓ | ✓ | — | — | ✓ | — |
+| Mistral AI | ✓ | ✓ | — | — | — | — | — |
+| Cohere | ✓ | ✓ | ✓ | — | — | — | — |
+| DeepSeek | ✓ | — | — | — | — | — | — |
+| Groq | ✓ | — | — | — | ✓ | — | — |
+| Ollama | ✓ | ✓ | — | — | — | — | — |
+| Xinference | ✓ | ✓ | ✓ | — | — | ✓ | — |
+| vLLM | ✓ | ✓ | — | — | — | — | — |

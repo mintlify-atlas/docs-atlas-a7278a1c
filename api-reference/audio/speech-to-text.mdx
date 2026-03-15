@@ -1,0 +1,56 @@
+---
+title: Speech to Text
+description: Transcribe an audio file to text using the app's configured speech-to-text model.
+---
+
+## Endpoint
+
+```
+POST /audio-to-text
+```
+
+This endpoint accepts an audio file and returns the transcribed text.
+
+## Request
+
+This endpoint uses `multipart/form-data` encoding.
+
+<ParamField body="file" type="file" required>
+  The audio file to transcribe. Supported formats depend on the configured provider (commonly: `mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `wav`, `webm`).
+</ParamField>
+
+<ParamField body="user" type="string">
+  The end user identifier.
+</ParamField>
+
+## Response
+
+<ResponseField name="text" type="string">
+  The transcribed text from the audio.
+</ResponseField>
+
+## Errors
+
+| Status | Code | Description |
+|---|---|---|
+| 400 | `no_audio_uploaded` | No audio file was included in the request. |
+| 400 | `provider_not_support_speech_to_text` | The configured model does not support speech-to-text. |
+| 400 | `provider_not_initialize` | No speech-to-text provider credentials configured. |
+| 400 | `provider_quota_exceeded` | Provider quota exhausted. |
+| 413 | `audio_too_large` | The audio file exceeds the maximum allowed size. |
+| 415 | `unsupported_audio_type` | The audio format is not supported. |
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/audio-to-text \
+  -H 'Authorization: Bearer {api_key}' \
+  -F 'file=@/path/to/recording.mp3;type=audio/mpeg' \
+  -F 'user=user-abc123'
+```
+
+```json Response
+{
+  "text": "Hello, I would like to know more about your product."
+}
+```

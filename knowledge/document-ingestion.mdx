@@ -1,0 +1,140 @@
+---
+title: 'Document ingestion'
+description: 'Understand how Dify extracts, cleans, and splits documents into indexed segments — including supported file formats, automatic and custom chunking, and parent-child mode.'
+keywords: ['document ingestion', 'ETL', 'chunking', 'segmentation', 'text splitting', 'file formats']
+---
+
+When you add a document to a dataset, Dify runs it through a three-stage pipeline: **Extract → Transform → Load**. Understanding each stage helps you choose the right settings for your content.
+
+## Supported file formats
+
+The extractor that runs depends on the file extension. Dify ships two ETL backends:
+
+### Standard ETL (default)
+
+| Extension | Extractor |
+|-----------|-----------|
+| `.txt` | `TextExtractor` — reads raw text with encoding auto-detection. |
+| `.md`, `.markdown`, `.mdx` | `MarkdownExtractor` — parses Markdown syntax and extracts text. |
+| `.pdf` | `PdfExtractor` — extracts text layer from PDF pages. |
+| `.html`, `.htm` | `HtmlExtractor` — strips HTML tags and extracts visible text. |
+| `.docx` | `WordExtractor` — extracts paragraphs and tables from OOXML. |
+| `.xlsx`, `.xls` | `ExcelExtractor` — reads cell values from all sheets. |
+| `.csv` | `CSVExtractor` — reads rows with encoding auto-detection. |
+| `.epub` | `UnstructuredEpubExtractor` — extracts chapters via Unstructured. |
+
+### Unstructured ETL (`ETL_TYPE=Unstructured`)
+
+Set `ETL_TYPE=Unstructured` in your environment to enable additional formats that require the [Unstructured](https://unstructured.io) API:
+
+| Extension | Extractor |
+|-----------|-----------|
+| `.doc` | `UnstructuredWordExtractor` — legacy Word format. |
+| `.ppt` | `UnstructuredPPTExtractor` — legacy PowerPoint. Requires an API key. |
+| `.pptx` | `UnstructuredPPTXExtractor` — modern PowerPoint. |
+| `.eml` | `UnstructuredEmailExtractor` — email message files. |
+| `.msg` | `UnstructuredMsgExtractor` — Outlook message files. |
+| `.xml` | `UnstructuredXmlExtractor` — XML documents. |
+| `.epub` | `UnstructuredEpubExtractor` — ebooks. |
+| `.md`, `.markdown`, `.mdx` | `UnstructuredMarkdownExtractor` — used in automatic mode for richer structure. |
+
+All other extensions fall back to `TextExtractor`.
+
+### Non-file data sources
+
+| Source | Extractor |
+|--------|-----------|
+| Notion page or database | `NotionExtractor` — fetches content via the Notion API. |
+| Website (Firecrawl) | `FirecrawlWebExtractor` — crawls and converts pages to Markdown. |
+| Website (WaterCrawl) | `WaterCrawlWebExtractor` — alternative crawl provider. |
+| Website (Jina Reader) | `JinaReaderWebExtractor` — uses Jina Reader API for clean extraction. |
+
+## The ETL pipeline
+
+### Stage 1: Extract
+
+The extractor reads the raw source (file bytes, API response, or web content) and produces a list of `Document` objects, each carrying a `page_content` string. Multiple pages or sections from one source file become separate `Document` objects at this stage.
+
+### Stage 2: Transform
+
+The transform stage performs two operations:
+
+**Cleaning** — The `CleanProcessor` applies pre-processing rules to each document's text:
+
+- **Always applied:** Strips invalid control characters and Unicode replacement characters that can corrupt embeddings.
+- **Remove extra spaces** (`remove_extra_spaces`): Collapses runs of three or more newlines to two, and collapses runs of whitespace characters to a single space.
+- **Remove URLs and emails** (`remove_urls_emails`): Strips bare email addresses and bare URLs from the text. Markdown-formatted links (`[text](url)`) and images are preserved.
+
+**Splitting** — The `FixedRecursiveCharacterTextSplitter` (or `EnhanceRecursiveCharacterTextSplitter`) breaks cleaned text into segments. The splitter tries separators in order (`\n\n`, `\n`, `。`, `. `, ` `, character-by-character) until segments fit within the configured size.
+
+### Stage 3: Load (index)
+
+Each segment is:
+1. Persisted as a `DocumentSegment` row in the database.
+2. Embedded by the dataset's embedding model (high-quality mode only).
+3. Upserted into the configured vector store.
+4. (Economy mode) Added to the inverted keyword index.
+
+## Segmentation strategies
+
+### Automatic mode
+
+When you choose **Automatic** processing, Dify applies the default rules:
+
+```json
+{
+  "pre_processing_rules": [
+    {"id": "remove_extra_spaces", "enabled": true},
+    {"id": "remove_urls_emails", "enabled": false}
+  ],
+  "segmentation": {
+    "delimiter": "\n",
+    "max_tokens": 500,
+    "chunk_overlap": 50
+  }
+}
+```
+
+Automatic mode also activates richer extractors for Markdown files (the `UnstructuredMarkdownExtractor` when available).
+
+### Custom mode
+
+Choose **Custom** to override every part of the segmentation:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| **Delimiter** | Character sequence used as a primary split boundary. Common values: `\n` (newline), `\n\n` (double newline). | `\n` |
+| **Max chunk size** | Maximum number of characters per segment. Segments exceeding this are recursively split using the fallback separator hierarchy. | `500` |
+| **Chunk overlap** | Number of characters copied from the end of one chunk to the start of the next. Overlap preserves context across chunk boundaries. | `50` |
+
+<Tip>
+For long prose documents such as legal contracts, increase max chunk size to 1000–2000 characters to avoid splitting sentences at awkward boundaries. For tabular content like FAQs or CSV rows, a smaller chunk size (100–300) keeps each row as its own segment.
+</Tip>
+
+### Parent-child chunk mode
+
+The **hierarchical** index structure (`IndexStructureType.PARENT_CHILD_INDEX`) stores two levels of chunks:
+
+- **Parent chunks** — larger text blocks, typically paragraph-sized.
+- **Child chunks** — smaller sub-divisions of each parent.
+
+Retrieval operates on child chunks (finer granularity → better relevance scoring), but the full parent chunk is returned as context (broader context → better LLM comprehension). This balances precision at retrieval time with completeness at generation time.
+
+To use parent-child mode, select **Hierarchical** as the processing mode when uploading a document, then configure:
+
+- **Parent mode** — `paragraph` (split by paragraph boundaries) or another structural unit.
+- **Child chunk size** — maximum token count for child segments.
+
+<Note>
+Parent-child mode is only available for high-quality (embedding-based) datasets.
+</Note>
+
+## Preview before indexing
+
+Before you confirm ingestion, Dify renders a **Preview** panel showing the first segments that will be created. The preview calls the same splitter and cleaner that will run for real, so what you see matches what gets indexed.
+
+If the segments look too coarse or too fine, adjust the chunk size or delimiter and regenerate the preview without committing any changes.
+
+<Warning>
+Summary generation in preview mode (when summary indexing is enabled) runs synchronously per chunk with a 60-second timeout per chunk and a 5-minute total cap. Large documents with many chunks may time out during preview.
+</Warning>

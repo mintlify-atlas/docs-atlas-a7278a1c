@@ -1,33 +1,60 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: Introduction
+description: Overview of the Dify REST API, base URL, request and response formats, and streaming.
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Base URL
 
-## Welcome
+All API requests are made to the following base URL:
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+```
+https://api.dify.ai/v1
+```
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+If you are self-hosting Dify, replace this with your own deployment URL (e.g., `https://your-dify-instance.com/v1`).
 
-## Authentication
+## API Types
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+Dify provides two categories of API keys:
+
+| API Type | Key Location | Scope |
+|---|---|---|
+| **App API** | App → Settings → API Access → API Key | Per-application operations: chat, completion, workflows, file uploads, audio |
+| **Dataset API** | Knowledge → API Settings | Knowledge base (dataset) management: create datasets, upload documents, retrieve |
+
+## Request Format
+
+All request bodies must be JSON with the `Content-Type: application/json` header, except for file upload endpoints which use `multipart/form-data`.
+
+```bash
+Content-Type: application/json
+```
+
+## Response Format
+
+All responses are returned as JSON. Successful responses include the requested data directly. Error responses follow a consistent structure:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+{
+  "code": "error_code",
+  "message": "Human-readable error description",
+  "status": 400
+}
 ```
+
+## Streaming Responses
+
+Endpoints that support streaming use [Server-Sent Events (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). Set `response_mode` to `streaming` in your request and handle the event stream:
+
+```bash
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "Hello", "user": "user-123", "inputs": {}, "response_mode": "streaming"}'
+```
+
+Each SSE event is a line beginning with `data: ` followed by a JSON object. The stream ends with `data: [DONE]`.
+
+## Rate Limiting
+
+Dify enforces per-tenant rate limits. When the limit is exceeded the API returns HTTP `429` with error code `rate_limit_exceeded`. Implement exponential back-off and retry logic in your client.

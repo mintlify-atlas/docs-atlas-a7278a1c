@@ -1,0 +1,203 @@
+---
+title: 'Environment variables'
+description: 'Complete reference for configuring a self-hosted Dify deployment via environment variables.'
+---
+
+All configuration is passed to Dify services through environment variables defined in `docker/.env`. The variables are loaded by `docker-compose.yaml` and forwarded to the relevant containers.
+
+<Info>
+  Start from `docker/.env.example` — it is the canonical source of truth and contains inline comments for every variable. Copy it to `.env` and edit only the values you need to change.
+</Info>
+
+## Core configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET_KEY` | *(example value)* | Secret used to sign session cookies and encrypt sensitive database fields. Generate with `openssl rand -base64 42`. **Must be changed in production.** |
+| `INIT_PASSWORD` | *(empty)* | Pre-set admin password for the initial setup. If empty, the setup wizard prompts for a password interactively. Max 30 characters. |
+| `DEPLOY_ENV` | `PRODUCTION` | Deployment environment. Set to `TESTING` to show a distinct colour label in the UI. Accepted: `PRODUCTION`, `TESTING`. |
+| `LOG_LEVEL` | `INFO` | Application log verbosity. Accepted: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
+| `LOG_OUTPUT_FORMAT` | `text` | Log output format. Accepted: `text`, `json`. |
+| `LOG_FILE` | `/app/logs/server.log` | Path to the log file inside the container. |
+| `DEBUG` | `false` | Enable Flask debug mode. Recommended only for local development. |
+| `FLASK_DEBUG` | `false` | Enable Flask's built-in debugger with interactive tracebacks. |
+| `MIGRATION_ENABLED` | `true` | Run database migrations automatically on startup. |
+| `CHECK_UPDATE_URL` | `https://updates.dify.ai` | URL polled to check for new Dify releases. Set to empty to disable update checks. |
+| `CONSOLE_API_URL` | *(same domain)* | Public URL of the API service, used in OAuth callbacks. Set when the frontend and API are on different domains. |
+| `CONSOLE_WEB_URL` | *(same domain)* | Public URL of the web frontend, used for CORS configuration. |
+| `SERVICE_API_URL` | *(same domain)* | Public base URL displayed in the API Access page for service API calls. |
+| `APP_API_URL` | *(same domain)* | Backend URL used by the WebApp frontend. |
+| `FILES_URL` | *(same domain)* | Publicly accessible URL prefix for file preview and download links. Required for multimodal inputs and file-processing plugins. |
+| `INTERNAL_FILES_URL` | *(empty)* | Internal Docker-network URL for the plugin daemon to access files via the API service (e.g., `http://api:5001`). |
+
+## Database
+
+Dify supports PostgreSQL (default), MySQL, OceanBase, and SeekDB as the relational database backend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_TYPE` | `postgresql` | Database backend type. Accepted: `postgresql`, `mysql`, `oceanbase`, `seekdb`. |
+| `DB_HOST` | `db_postgres` | Database hostname. In Docker Compose this is the service name. |
+| `DB_PORT` | `5432` | Database port. |
+| `DB_USERNAME` | `postgres` | Database user. For MySQL, only `root` is currently supported. |
+| `DB_PASSWORD` | `difyai123456` | Database password. **Change in production.** |
+| `DB_DATABASE` | `dify` | Database name. |
+| `SQLALCHEMY_POOL_SIZE` | `30` | Number of persistent connections in the connection pool. |
+| `SQLALCHEMY_MAX_OVERFLOW` | `10` | Number of connections that can temporarily exceed the pool size. |
+| `SQLALCHEMY_POOL_RECYCLE` | `3600` | Seconds before a connection is recycled. |
+| `POSTGRES_MAX_CONNECTIONS` | `100` | PostgreSQL `max_connections` setting. |
+| `POSTGRES_SHARED_BUFFERS` | `128MB` | PostgreSQL shared buffers. Recommended: 25% of available RAM. |
+| `POSTGRES_WORK_MEM` | `4MB` | Memory per sort/hash operation per database worker. |
+| `POSTGRES_EFFECTIVE_CACHE_SIZE` | `4096MB` | Planner estimate of the OS file system cache. |
+
+## Redis and Celery
+
+Redis is used for caching, pub/sub messaging between the API and workers, and as the Celery broker.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_HOST` | `redis` | Redis hostname. |
+| `REDIS_PORT` | `6379` | Redis port. |
+| `REDIS_PASSWORD` | `difyai123456` | Redis password. **Change in production.** |
+| `REDIS_DB` | `0` | Redis database index for caching. |
+| `REDIS_USE_SSL` | `false` | Enable TLS for Redis connections. |
+| `REDIS_USE_SENTINEL` | `false` | Connect via Redis Sentinel for high availability. |
+| `REDIS_SENTINELS` | *(empty)* | Comma-separated list of Sentinel nodes (`host:port`). |
+| `REDIS_USE_CLUSTERS` | `false` | Enable Redis Cluster mode. |
+| `CELERY_BROKER_URL` | `redis://:difyai123456@redis:6379/1` | Full broker URL for Celery. Uses Redis database 1 by default. |
+| `CELERY_BACKEND` | `redis` | Celery result backend. |
+| `CELERY_WORKER_AMOUNT` | *(empty)* | Number of Celery worker processes. Defaults to CPU count × 2 + 1. |
+| `CELERY_AUTO_SCALE` | `false` | Enable autoscaling of Celery workers based on queue depth. |
+| `CELERY_MAX_WORKERS` | *(empty)* | Maximum workers when autoscaling is enabled. |
+| `CELERY_MIN_WORKERS` | *(empty)* | Minimum workers when autoscaling is enabled. |
+| `SERVER_WORKER_AMOUNT` | `1` | Number of Gunicorn worker processes for the API server. |
+| `SERVER_WORKER_CLASS` | `gevent` | Gunicorn worker class. Use `gevent` (default) for best throughput. |
+| `GUNICORN_TIMEOUT` | `360` | Request timeout in seconds. Increase for long-running SSE connections. |
+
+## File storage
+
+Dify stores uploaded files and plugin assets in an object storage backend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STORAGE_TYPE` | `opendal` | Storage backend. Accepted: `opendal` (local or S3 via OpenDAL), `s3`, `azure-blob`, `google-storage`, `aliyun-oss`, `tencent-cos`, `huawei-obs`, `supabase`. |
+| `OPENDAL_SCHEME` | `fs` | OpenDAL scheme. `fs` for local filesystem; `s3` for S3-compatible. |
+| `OPENDAL_FS_ROOT` | `storage` | Root path for local filesystem storage (relative to the container). |
+| `S3_ENDPOINT` | *(empty)* | S3 endpoint URL. Leave empty for AWS S3; set for S3-compatible services (MinIO, Cloudflare R2, etc.). |
+| `S3_REGION` | `us-east-1` | AWS region or equivalent. |
+| `S3_BUCKET_NAME` | `difyai` | S3 bucket name. |
+| `S3_ACCESS_KEY` | *(empty)* | S3 access key ID. |
+| `S3_SECRET_KEY` | *(empty)* | S3 secret access key. |
+| `S3_USE_AWS_MANAGED_IAM` | `false` | Use AWS IAM role instead of explicit credentials. |
+| `AZURE_BLOB_ACCOUNT_NAME` | `difyai` | Azure Blob Storage account name. |
+| `AZURE_BLOB_ACCOUNT_KEY` | *(placeholder)* | Azure Blob Storage account key. |
+| `AZURE_BLOB_CONTAINER_NAME` | `difyai-container` | Azure Blob container name. |
+| `AZURE_BLOB_ACCOUNT_URL` | *(placeholder)* | Azure Blob endpoint URL (`https://<account>.blob.core.windows.net`). |
+| `GOOGLE_STORAGE_BUCKET_NAME` | `your-bucket-name` | Google Cloud Storage bucket name. |
+| `GOOGLE_STORAGE_SERVICE_ACCOUNT_JSON_BASE64` | *(empty)* | Base64-encoded GCP service account JSON key. |
+
+## Vector store
+
+The vector store holds document embeddings for knowledge base retrieval. Select the backend with `VECTOR_STORE`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VECTOR_STORE` | `weaviate` | Vector store backend. Supported values: `weaviate`, `qdrant`, `milvus`, `pgvector`, `opensearch`, `elasticsearch`, `chroma`, `myscale`, `oracle`, `tencent`, `analyticdb`, `tidb`, `baidu`, `vikingdb`, and more. |
+| `VECTOR_INDEX_NAME_PREFIX` | `Vector_index` | Prefix for collection/index names created in the vector store. |
+| `WEAVIATE_ENDPOINT` | `http://weaviate:8080` | Weaviate HTTP endpoint. |
+| `WEAVIATE_API_KEY` | *(example value)* | Weaviate API key. Change in production. |
+| `WEAVIATE_GRPC_ENDPOINT` | `grpc://weaviate:50051` | Weaviate gRPC endpoint. |
+| `QDRANT_URL` | `http://qdrant:6333` | Qdrant HTTP endpoint. |
+| `QDRANT_API_KEY` | `difyai123456` | Qdrant API key. |
+| `MILVUS_URI` | `http://host.docker.internal:19530` | Milvus connection URI. |
+| `PGVECTOR_HOST` | `pgvector` | Host for the pgvector PostgreSQL extension. |
+| `PGVECTOR_DATABASE` | `dify` | Database name for pgvector. |
+| `OPENSEARCH_HOST` | `opensearch` | OpenSearch hostname. |
+| `OPENSEARCH_PORT` | `9200` | OpenSearch port. |
+| `ELASTICSEARCH_HOST` | `0.0.0.0` | Elasticsearch hostname. |
+| `ELASTICSEARCH_PORT` | `9200` | Elasticsearch port. |
+
+## Knowledge base
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPLOAD_FILE_SIZE_LIMIT` | `15` | Maximum file upload size in MB. |
+| `UPLOAD_FILE_BATCH_LIMIT` | `5` | Maximum number of files uploadable in a single batch. |
+| `ETL_TYPE` | `dify` | Document extraction pipeline. `dify` uses Dify's built-in extractor; `Unstructured` uses Unstructured.io. |
+| `UNSTRUCTURED_API_URL` | *(empty)* | Unstructured.io API endpoint (e.g., `http://unstructured:8000/general/v0/general`). Required when `ETL_TYPE=Unstructured`. |
+| `UNSTRUCTURED_API_KEY` | *(empty)* | Unstructured.io API key. |
+| `INDEXING_MAX_SEGMENTATION_TOKENS_LENGTH` | `4000` | Maximum tokens per document chunk during indexing. |
+| `TOP_K_MAX_VALUE` | `10` | Maximum `top_k` value allowed for RAG retrieval. |
+
+## Model limits
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROMPT_GENERATION_MAX_TOKENS` | `512` | Maximum tokens for system prompt generation tool. |
+| `CODE_GENERATION_MAX_TOKENS` | `1024` | Maximum tokens for code generation tool. |
+| `OPENAI_API_BASE` | `https://api.openai.com/v1` | Override the OpenAI API base URL. Useful for proxies or OpenAI-compatible local models. |
+
+## Workflow
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WORKFLOW_MAX_EXECUTION_STEPS` | `500` | Maximum number of node executions per workflow run. |
+| `WORKFLOW_MAX_EXECUTION_TIME` | `1200` | Maximum wall-clock seconds for a single workflow run. |
+| `WORKFLOW_CALL_MAX_DEPTH` | `5` | Maximum sub-workflow nesting depth. |
+| `MAX_VARIABLE_SIZE` | `204800` | Maximum variable payload size in bytes (200 KB). |
+| `WORKFLOW_FILE_UPLOAD_LIMIT` | `10` | Maximum files that can be uploaded to a single workflow run. |
+| `MAX_PARALLEL_LIMIT` | `10` | Maximum parallel branches in a workflow. |
+| `LOOP_NODE_MAX_COUNT` | `100` | Maximum iterations for a loop node. |
+| `MAX_ITERATIONS_NUM` | `99` | Maximum agent iterations per run. |
+| `MAX_TOOLS_NUM` | `10` | Maximum tools available to an agent. |
+
+## Feature flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MARKETPLACE_ENABLED` | `true` | Enable the Dify Plugin Marketplace integration. |
+| `ENABLE_WEBSITE_JINAREADER` | `true` | Allow the Jina Reader website scraping data source. |
+| `ENABLE_WEBSITE_FIRECRAWL` | `true` | Allow the Firecrawl website scraping data source. |
+| `ENABLE_WEBSITE_WATERCRAWL` | `true` | Allow the Watercrawl website scraping data source. |
+| `ALLOW_EMBED` | `false` | Allow the Dify web UI to be embedded in iframes. Set to `true` to permit embedding. |
+| `SWAGGER_UI_ENABLED` | `false` | Enable the Swagger UI at `SWAGGER_UI_PATH`. For development use only. |
+| `RESPECT_XFORWARD_HEADERS_ENABLED` | `false` | Trust `X-Forwarded-*` headers from upstream proxies. Enable when Dify is behind a load balancer. |
+| `NEXT_PUBLIC_ENABLE_SINGLE_DOLLAR_LATEX` | `false` | Enable inline LaTeX rendering with single dollar signs (`$...$`) in the frontend. Disabled by default to avoid conflicts with regular text. |
+
+## Nginx
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NGINX_HTTPS_ENABLED` | `false` | Enable HTTPS on the Nginx reverse proxy. |
+| `NGINX_PORT` | `80` | HTTP port Nginx listens on inside the container. |
+| `NGINX_SSL_PORT` | `443` | HTTPS port Nginx listens on inside the container. |
+| `EXPOSE_NGINX_PORT` | `80` | Host port mapped to the Nginx HTTP port. Change to avoid conflicts. |
+| `EXPOSE_NGINX_SSL_PORT` | `443` | Host port mapped to the Nginx HTTPS port. |
+| `NGINX_CLIENT_MAX_BODY_SIZE` | `100M` | Maximum request body size. Increase if you need to upload large files. |
+| `NGINX_PROXY_READ_TIMEOUT` | `3600s` | Upstream read timeout. |
+| `NGINX_WORKER_PROCESSES` | `auto` | Number of Nginx worker processes. |
+| `NGINX_ENABLE_CERTBOT_CHALLENGE` | `false` | Serve ACME challenge responses for Let's Encrypt certificate issuance. |
+
+## Plugin daemon
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PLUGIN_DAEMON_PORT` | `5002` | Internal port the plugin daemon listens on. |
+| `PLUGIN_DAEMON_KEY` | *(example value)* | Authentication key between the API service and plugin daemon. **Must match `DIFY_INNER_API_KEY` in the plugin daemon service.** |
+| `PLUGIN_DIFY_INNER_API_KEY` | *(example value)* | Key the plugin daemon uses to call back into the API service. Must match `INNER_API_KEY_FOR_PLUGIN` on the API container. |
+| `PLUGIN_MAX_PACKAGE_SIZE` | `52428800` | Maximum plugin package size in bytes (50 MB). |
+| `PLUGIN_MAX_EXECUTION_TIMEOUT` | `600` | Maximum seconds a plugin execution can run. |
+| `PLUGIN_STORAGE_TYPE` | `local` | Storage backend for plugin files. Accepted: `local`, `aws_s3`, `tencent_cos`, `azure_blob`, `aliyun_oss`, `volcengine_tos`. |
+| `MARKETPLACE_API_URL` | `https://marketplace.dify.ai` | URL of the plugin marketplace API. |
+
+## Observability (OpenTelemetry)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_OTEL` | `false` | Enable OpenTelemetry tracing and metrics export. |
+| `OTLP_BASE_ENDPOINT` | `http://localhost:4318` | Base OTLP HTTP endpoint. |
+| `OTLP_TRACE_ENDPOINT` | *(empty)* | Override trace endpoint (overrides `OTLP_BASE_ENDPOINT`). |
+| `OTLP_METRIC_ENDPOINT` | *(empty)* | Override metrics endpoint (overrides `OTLP_BASE_ENDPOINT`). |
+| `OTEL_SAMPLING_RATE` | `0.1` | Fraction of traces sampled (0.0–1.0). |
+| `API_SENTRY_DSN` | *(empty)* | Sentry DSN for the API service. Leave empty to disable Sentry reporting. |
+| `WEB_SENTRY_DSN` | *(empty)* | Sentry DSN for the web frontend. |

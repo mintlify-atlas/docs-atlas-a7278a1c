@@ -1,0 +1,282 @@
+---
+title: 'Workflow app'
+description: 'Publish a visual workflow as a deployable application. Configure input variables and response format, then call the workflow via REST API or the hosted web UI.'
+---
+
+A Workflow App is a published workflow exposed as a standalone application. You build the logic in the visual workflow editor — connecting LLM nodes, knowledge retrieval, code execution, HTTP requests, conditionals, and more — then publish it. The published version becomes the application that end users and API consumers interact with.
+
+The underlying app mode is `workflow`. The API endpoint is `POST /workflows/run`.
+
+## Workflow App vs. editor workflows
+
+| | Workflow editor | Workflow App |
+|---|---|---|
+| **Purpose** | Build and iterate on pipeline logic | Deploy logic as a consumable application |
+| **State** | Can be a draft under active development | Always reflects the last published version |
+| **Access** | Studio only — requires a Dify account | API, web UI, embedded widget — no Dify account needed |
+| **API** | Not directly callable | `POST /workflows/run` |
+| **Versioning** | Edited in place | Each publish creates a versioned snapshot |
+
+Publishing a workflow creates a snapshot of the graph. Subsequent edits in the editor do not affect the running application until you publish again.
+
+## Input variable configuration
+
+Input variables for a Workflow App are defined in the **Start** node of the workflow graph. Every variable you add to the Start node becomes:
+
+1. A field in the hosted web UI form.
+2. A key in the `inputs` object of the API request.
+
+Supported variable types in the Start node:
+
+| Type | Description |
+|---|---|
+| `text-input` | Single-line text |
+| `paragraph` | Multi-line text area |
+| `number` | Integer or decimal number |
+| `select` | Dropdown with predefined options |
+| `file` | Single file upload |
+| `file-list` | Multiple file uploads |
+
+Variables defined in the Start node are referenced throughout the workflow as `{{start_node_id.variable_name}}` or via the variable picker.
+
+## Response output
+
+The **End** node determines what the workflow returns to the caller.
+
+<Tabs>
+  <Tab title="Text output">
+    Connect a variable containing text to the End node's output. The API response includes the text in the `outputs` object.
+
+    ```json
+    {
+      "outputs": {
+        "result": "The capital of France is Paris."
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Structured JSON output">
+    Connect multiple variables to the End node to return structured data. The `outputs` object contains all declared output variables as key-value pairs.
+
+    ```json
+    {
+      "outputs": {
+        "summary": "Q1 revenue increased 12% YoY.",
+        "sentiment": "positive",
+        "confidence": 0.94
+      }
+    }
+    ```
+
+    Use a **Code** node or **Parameter Extractor** node to produce structured output before the End node.
+  </Tab>
+</Tabs>
+
+## Execution modes
+
+`POST /workflows/run` supports two execution modes controlled by the `response_mode` field.
+
+<Tabs>
+  <Tab title="Blocking">
+    The HTTP connection stays open until the workflow finishes, then returns the complete result in a single JSON response.
+
+    ```json
+    {
+      "workflow_run_id": "abc123",
+      "task_id": "task-xyz",
+      "data": {
+        "id": "run-id",
+        "workflow_id": "wf-id",
+        "status": "succeeded",
+        "outputs": { "result": "Paris" },
+        "elapsed_time": 1.23,
+        "total_tokens": 312,
+        "total_steps": 4,
+        "created_at": 1705000000,
+        "finished_at": 1705000002
+      }
+    }
+    ```
+
+    **Use when:** The workflow is short-lived (under a few seconds) and you need the result synchronously.
+
+    <Warning>For long-running workflows, blocking mode may hit proxy or client timeouts. Use streaming mode or poll for results instead.</Warning>
+  </Tab>
+  <Tab title="Streaming">
+    Returns a stream of server-sent events as the workflow progresses. Each event describes a node execution or status change.
+
+    Event types:
+
+    | Event | Description |
+    |---|---|
+    | `workflow_started` | Workflow execution has begun |
+    | `node_started` | A node has started executing |
+    | `node_finished` | A node has completed. Contains the node's inputs, outputs, and status |
+    | `workflow_finished` | Workflow is complete. Contains final outputs and usage stats |
+    | `text_chunk` | A chunk of streamed text from an LLM node |
+    | `error` | An error occurred |
+    | `ping` | Keepalive every 10 seconds |
+
+    **Use when:** The workflow is long-running, involves multiple LLM calls, or you want to show progress to the user.
+  </Tab>
+</Tabs>
+
+## API integration
+
+### Run a workflow
+
+`POST /workflows/run`
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.dify.ai/v1/workflows/run \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": {
+      "topic": "climate change",
+      "article_length": "500"
+    },
+    "response_mode": "blocking",
+    "user": "user-123"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.dify.ai/v1/workflows/run",
+    headers={"Authorization": "Bearer app-your-api-key"},
+    json={
+        "inputs": {
+            "topic": "climate change",
+            "article_length": "500",
+        },
+        "response_mode": "blocking",
+        "user": "user-123",
+    },
+)
+
+result = response.json()
+print(result["data"]["outputs"])
+```
+
+```javascript JavaScript
+const response = await fetch("https://api.dify.ai/v1/workflows/run", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer app-your-api-key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    inputs: {
+      topic: "climate change",
+      article_length: "500",
+    },
+    response_mode: "blocking",
+    user: "user-123",
+  }),
+});
+
+const result = await response.json();
+console.log(result.data.outputs);
+```
+
+</CodeGroup>
+
+**Request fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `inputs` | object | Yes | Key-value pairs matching Start node variable names. All required variables must be present |
+| `response_mode` | string | No | `"blocking"` (default) or `"streaming"` |
+| `user` | string | Yes | Your identifier for the end user |
+| `files` | array | No | Files attached to this run. Required if the workflow has file-type input variables |
+
+### Run a specific workflow version
+
+`POST /workflows/{workflow_id}/run`
+
+To target a specific published version by its workflow ID (visible in the publish history), use the versioned endpoint:
+
+```bash
+curl -X POST https://api.dify.ai/v1/workflows/wf-abc123/run \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": { "topic": "AI safety" },
+    "response_mode": "blocking",
+    "user": "user-123"
+  }'
+```
+
+<Note>Calling `POST /workflows/run` without a workflow ID always executes the latest published version.</Note>
+
+### Get run details
+
+`GET /workflows/run/{workflow_run_id}`
+
+Retrieve the status and outputs of a specific run by its ID:
+
+```bash
+curl https://api.dify.ai/v1/workflows/run/run-id-here \
+  -H "Authorization: Bearer app-your-api-key"
+```
+
+Response includes `status` (`succeeded`, `failed`, `stopped`), `outputs`, `total_tokens`, `elapsed_time`, and step counts.
+
+### Stop a running workflow
+
+`POST /workflows/tasks/{task_id}/stop`
+
+```bash
+curl -X POST https://api.dify.ai/v1/workflows/tasks/task-id-here/stop \
+  -H "Authorization: Bearer app-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"user": "user-123"}'
+```
+
+### Get execution logs
+
+`GET /workflows/logs`
+
+Returns paginated execution logs for the application. Useful for monitoring, debugging, and auditing.
+
+```bash
+curl "https://api.dify.ai/v1/workflows/logs?page=1&limit=20&status=succeeded" \
+  -H "Authorization: Bearer app-your-api-key"
+```
+
+Filter parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `page` | integer | Page number (default: 1) |
+| `limit` | integer | Results per page, 1–100 (default: 20) |
+| `status` | string | Filter by status: `succeeded`, `failed`, or `stopped` |
+| `keyword` | string | Full-text search over inputs and outputs |
+| `created_at__before` | ISO 8601 | Filter runs created before this timestamp |
+| `created_at__after` | ISO 8601 | Filter runs created after this timestamp |
+| `created_by_end_user_session_id` | string | Filter by end user session ID |
+| `created_by_account` | string | Filter by account email or ID |
+
+## Webhook and scheduled triggers
+
+In addition to direct API calls, Workflow Apps can be triggered externally.
+
+<AccordionGroup>
+  <Accordion title="Webhook triggers">
+    Configure a webhook URL in **Settings → Triggers → Webhook**. Dify generates a unique endpoint URL. When an HTTP POST is sent to that URL, Dify extracts the payload and maps it to the workflow's input variables according to the field mapping you define.
+
+    Use webhook triggers to integrate with third-party services that support outbound webhooks — for example, GitHub Actions, Zapier, or a custom event system.
+  </Accordion>
+  <Accordion title="Scheduled triggers">
+    Configure a cron-based schedule in **Settings → Triggers → Scheduled**. Dify runs the workflow at the specified interval with a fixed set of inputs.
+
+    Scheduled triggers are useful for periodic tasks such as generating daily reports, syncing data, or running background enrichment jobs.
+
+    <Note>Scheduled triggers require the workflow to have no required user-provided inputs, or for all required inputs to have default values configured in the Start node.</Note>
+  </Accordion>
+</AccordionGroup>

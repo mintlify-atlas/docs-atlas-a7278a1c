@@ -1,0 +1,130 @@
+---
+title: Stop Workflow
+description: Stop a running workflow task or retrieve the status of a completed run.
+---
+
+## Stop a Workflow Task
+
+```
+POST /workflows/tasks/{task_id}/stop
+```
+
+Stops a running workflow task. Works for both streaming and blocking modes.
+
+### Path Parameters
+
+<ParamField path="task_id" type="string" required>
+  The task ID returned when the workflow was started.
+</ParamField>
+
+### Request Body
+
+<ParamField body="user" type="string" required>
+  The end user identifier. Must match the `user` value used when the workflow was started.
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="string">
+  Returns `"success"` when the stop command has been issued.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/workflows/tasks/task-abc123/stop \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{"user": "user-abc123"}'
+```
+
+```json Response
+{
+  "result": "success"
+}
+```
+
+---
+
+## Get Workflow Run Details
+
+```
+GET /workflows/run/{workflow_run_id}
+```
+
+Returns detailed information about a specific workflow run.
+
+### Path Parameters
+
+<ParamField path="workflow_run_id" type="string" required>
+  The workflow run ID returned when the workflow was executed.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Workflow run ID.
+</ResponseField>
+
+<ResponseField name="workflow_id" type="string">
+  Workflow definition ID.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Execution status: `succeeded`, `failed`, `stopped`, or `running`.
+</ResponseField>
+
+<ResponseField name="inputs" type="object">
+  Input values used for this run.
+</ResponseField>
+
+<ResponseField name="outputs" type="object">
+  Output values produced by this run. Empty object if the run is paused or has not yet completed.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if the run failed.
+</ResponseField>
+
+<ResponseField name="total_steps" type="integer">
+  Number of steps executed.
+</ResponseField>
+
+<ResponseField name="total_tokens" type="integer">
+  Total tokens consumed.
+</ResponseField>
+
+<ResponseField name="created_at" type="integer">
+  Unix timestamp when the run started.
+</ResponseField>
+
+<ResponseField name="finished_at" type="integer">
+  Unix timestamp when the run finished. Null if still running.
+</ResponseField>
+
+<ResponseField name="elapsed_time" type="number">
+  Total elapsed time in seconds.
+</ResponseField>
+
+### Example
+
+```bash
+curl https://api.dify.ai/v1/workflows/run/djflajgkldjgd \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "id": "djflajgkldjgd",
+  "workflow_id": "19eff3db-6c23-4ffe-b981-1234abcd",
+  "status": "succeeded",
+  "inputs": {"topic": "climate change"},
+  "outputs": {"summary": "Climate change refers to..."},
+  "error": null,
+  "total_steps": 5,
+  "total_tokens": 512,
+  "created_at": 1705395332,
+  "finished_at": 1705395336,
+  "elapsed_time": 3.42
+}
+```

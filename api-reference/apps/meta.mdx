@@ -1,0 +1,39 @@
+---
+title: App Meta
+description: Retrieve application metadata including tool icon information.
+---
+
+## Endpoint
+
+```
+GET /meta
+```
+
+Returns metadata about the application, including icon information for tools used in agent or workflow configurations.
+
+## Response
+
+<ResponseField name="tool_icons" type="object">
+  A map of tool names to their icon definitions. Each key is a tool identifier and each value is either:
+  - A URL string pointing to the tool's icon image.
+  - An object with `background` (hex color string) and `content` (emoji string) for emoji-based icons.
+</ResponseField>
+
+## Example
+
+```bash
+curl https://api.dify.ai/v1/meta \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "tool_icons": {
+    "dalle2": "https://cloud.dify.ai/console/api/workspaces/current/tool-provider/builtin/dalle/icon",
+    "api_tool": {
+      "background": "#252525",
+      "content": "\ud83d\ude80"
+    }
+  }
+}
+```

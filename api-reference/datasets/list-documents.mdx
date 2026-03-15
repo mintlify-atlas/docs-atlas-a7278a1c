@@ -1,0 +1,111 @@
+---
+title: List Documents
+description: Retrieve all documents in a dataset with optional filtering and pagination.
+---
+
+<Note>
+This endpoint uses the **Dataset API Key**, not the App API Key.
+</Note>
+
+## Endpoint
+
+```
+GET /datasets/{dataset_id}/documents
+```
+
+## Path Parameters
+
+<ParamField path="dataset_id" type="string" required>
+  The UUID of the dataset.
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="page" type="integer" default="1">
+  Page number for pagination.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of documents per page. Maximum 100.
+</ParamField>
+
+<ParamField query="keyword" type="string">
+  Search keyword to filter documents by name.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by document display status (e.g., `available`, `unavailable`, `indexing`, `error`, `archived`).
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="array">
+  List of document objects.
+
+  <Expandable title="Document object">
+    <ResponseField name="id" type="string">Document ID.</ResponseField>
+    <ResponseField name="position" type="integer">Order position within the dataset.</ResponseField>
+    <ResponseField name="data_source_type" type="string">How the document was added: `upload_file` or `notion_import`.</ResponseField>
+    <ResponseField name="name" type="string">Document name.</ResponseField>
+    <ResponseField name="indexing_status" type="string">Current indexing status.</ResponseField>
+    <ResponseField name="enabled" type="boolean">Whether the document is active and searchable.</ResponseField>
+    <ResponseField name="archived" type="boolean">Whether the document is archived.</ResponseField>
+    <ResponseField name="display_status" type="string">Human-readable status shown in the UI.</ResponseField>
+    <ResponseField name="doc_form" type="string">Document form type.</ResponseField>
+    <ResponseField name="doc_language" type="string">Document language.</ResponseField>
+    <ResponseField name="tokens" type="integer">Token count.</ResponseField>
+    <ResponseField name="segment_count" type="integer">Number of segments the document was split into.</ResponseField>
+    <ResponseField name="hit_count" type="integer">Number of times this document was retrieved.</ResponseField>
+    <ResponseField name="created_at" type="integer">Unix timestamp of creation.</ResponseField>
+    <ResponseField name="updated_at" type="integer">Unix timestamp of last update.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more pages.
+</ResponseField>
+
+<ResponseField name="limit" type="integer">
+  Items per page.
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of documents in the dataset.
+</ResponseField>
+
+<ResponseField name="page" type="integer">
+  Current page number.
+</ResponseField>
+
+## Example
+
+```bash
+curl 'https://api.dify.ai/v1/datasets/c3d4e5f6-1234-5678-abcd-ef0123456789/documents?page=1&limit=20' \
+  -H 'Authorization: Bearer {dataset_api_key}'
+```
+
+```json Response
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-0000-1111-2222-333344445555",
+      "position": 1,
+      "data_source_type": "upload_file",
+      "name": "Return Policy",
+      "indexing_status": "completed",
+      "enabled": true,
+      "archived": false,
+      "display_status": "available",
+      "tokens": 240,
+      "segment_count": 3,
+      "hit_count": 12,
+      "created_at": 1705395332,
+      "updated_at": 1705395450
+    }
+  ],
+  "has_more": false,
+  "limit": 20,
+  "total": 1,
+  "page": 1
+}
+```

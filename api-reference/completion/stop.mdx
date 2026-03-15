@@ -1,0 +1,47 @@
+---
+title: Stop Completion
+description: Stop an in-progress streaming completion request.
+---
+
+<Note>
+This endpoint is only meaningful for **streaming** responses.
+</Note>
+
+## Endpoint
+
+```
+POST /completion-messages/{task_id}/stop
+```
+
+## Path Parameters
+
+<ParamField path="task_id" type="string" required>
+  The task ID from the `task_id` field in the SSE stream events.
+</ParamField>
+
+## Request Body
+
+<ParamField body="user" type="string" required>
+  The end user identifier. Must match the `user` value used when the completion was created.
+</ParamField>
+
+## Response
+
+<ResponseField name="result" type="string">
+  Returns `"success"` when the task has been stopped.
+</ResponseField>
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/completion-messages/task-abc123/stop \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{"user": "user-abc123"}'
+```
+
+```json Response
+{
+  "result": "success"
+}
+```

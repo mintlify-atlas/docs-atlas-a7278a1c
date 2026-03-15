@@ -1,0 +1,47 @@
+---
+title: Stop Message Generation
+description: Stop an in-progress streaming chat message.
+---
+
+<Note>
+This endpoint is only meaningful for **streaming** responses. It has no effect on blocking requests.
+</Note>
+
+## Endpoint
+
+```
+POST /chat-messages/{task_id}/stop
+```
+
+## Path Parameters
+
+<ParamField path="task_id" type="string" required>
+  The task ID returned in the `task_id` field of the streaming SSE events.
+</ParamField>
+
+## Request Body
+
+<ParamField body="user" type="string" required>
+  The end user identifier. Must match the `user` value used when the message was sent.
+</ParamField>
+
+## Response
+
+<ResponseField name="result" type="string">
+  Returns `"success"` when the task has been stopped.
+</ResponseField>
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/chat-messages/abc-task-id-123/stop \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{"user": "user-abc123"}'
+```
+
+```json Response
+{
+  "result": "success"
+}
+```

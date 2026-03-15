@@ -1,0 +1,77 @@
+---
+title: 'Self-hosting overview'
+description: 'Deploy Dify on your own infrastructure using Docker Compose or Kubernetes.'
+---
+
+Dify can be deployed on any server or cloud environment you control. Self-hosting gives you full data ownership, the ability to customise every component, and no dependency on Dify Cloud infrastructure.
+
+## Minimum system requirements
+
+| Resource | Minimum |
+|----------|---------|
+| CPU | 2 cores |
+| RAM | 4 GiB |
+| Disk | 20 GiB (more for large knowledge bases) |
+
+<Warning>
+  Running below these minimums results in degraded performance and may cause services to OOM-kill under load. For production workloads, 4 cores and 8 GiB RAM is a more comfortable starting point.
+</Warning>
+
+## Deployment options
+
+<CardGroup cols={2}>
+  <Card title="Docker Compose" icon="docker" href="/getting-started/docker-compose">
+    The fastest way to run Dify on a single server. All services — API, worker, web frontend, PostgreSQL, Redis, Weaviate, Nginx, and the sandbox — are orchestrated by a single `docker compose up -d` command. Recommended for development, staging, and low-to-medium traffic production deployments.
+  </Card>
+  <Card title="Kubernetes with Helm" icon="ship" href="https://github.com/douban/charts/tree/master/charts/dify">
+    For production-scale deployments that need high availability, horizontal scaling, and native Kubernetes features. Several community-maintained Helm charts are available. Suitable when you need to run multiple API replicas, separate worker pools, or integrate with managed cloud databases and object storage.
+  </Card>
+</CardGroup>
+
+### Additional deployment methods
+
+<AccordionGroup>
+  <Accordion title="Terraform (Azure, Google Cloud)">
+    Deploy Dify to a cloud platform with a single command using community Terraform modules:
+
+    - [Azure Terraform by @nikawang](https://github.com/nikawang/dify-azure-terraform)
+    - [Google Cloud Terraform by @sotazum](https://github.com/DeNA/dify-google-cloud-terraform)
+  </Accordion>
+  <Accordion title="AWS CDK">
+    Deploy to AWS using CDK:
+
+    - [EKS-based CDK by @KevinZhao](https://github.com/aws-samples/solution-for-deploying-dify-on-aws)
+    - [ECS-based CDK by @tmokmss](https://github.com/aws-samples/dify-self-hosted-on-aws)
+
+    Also available on [AWS Marketplace (Dify Premium)](https://aws.amazon.com/marketplace/pp/prodview-t22mebxzwjhu6) for one-click deployment into your own AWS VPC.
+  </Accordion>
+  <Accordion title="Alibaba Cloud">
+    - [Alibaba Cloud Computing Nest](https://computenest.console.aliyun.com/service/instance/create/default?type=user&ServiceName=Dify%E7%A4%BE%E5%8C%BA%E7%89%88) — one-click deploy.
+    - [Alibaba Cloud Data Management](https://www.alibabacloud.com/help/en/dms/dify-in-invitational-preview/) — deploy via DMS.
+  </Accordion>
+  <Accordion title="Source code">
+    For contributors or developers who need to modify the application code, Dify can be run directly from source. See the [source code deployment guide](https://docs.dify.ai/getting-started/install-self-hosted/local-source-code) in the official documentation.
+  </Accordion>
+</AccordionGroup>
+
+## Architecture overview
+
+A standard Docker Compose deployment runs the following services:
+
+| Service | Image | Role |
+|---------|-------|------|
+| `api` | `langgenius/dify-api` | Flask REST API server (Gunicorn + gevent) |
+| `worker` | `langgenius/dify-api` | Celery worker — processes dataset indexing, workflows, emails |
+| `worker_beat` | `langgenius/dify-api` | Celery beat scheduler for periodic tasks |
+| `web` | `langgenius/dify-web` | Next.js frontend console and app runtime |
+| `db_postgres` | `postgres:15-alpine` | Primary relational database |
+| `redis` | `redis:6-alpine` | Cache, pub/sub, and Celery broker |
+| `weaviate` | `semitechnologies/weaviate` | Default vector store for knowledge bases |
+| `nginx` | `nginx` | Reverse proxy, SSL termination, static file serving |
+| `sandbox` | `langgenius/dify-sandbox` | Sandboxed Python/JavaScript code execution |
+| `ssrf_proxy` | `ubuntu/squid` | Outbound proxy to mitigate SSRF risks |
+| `plugin_daemon` | `langgenius/dify-plugin-daemon` | Plugin lifecycle and execution manager |
+
+## Next steps
+
+Follow the [Docker Compose deployment guide](/getting-started/docker-compose) to get Dify running in under ten minutes, then review the [environment variables reference](/getting-started/environment-variables) to tune your deployment.

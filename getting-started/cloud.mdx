@@ -1,0 +1,112 @@
+---
+title: 'Dify Cloud'
+description: 'Get started with Dify Cloud — the fully managed, zero-setup version of Dify.'
+---
+
+Dify Cloud lets you build and ship LLM applications without managing any infrastructure. Sign up at [cloud.dify.ai](https://cloud.dify.ai) and start building in minutes.
+
+## Plans
+
+<CardGroup cols={3}>
+  <Card title="Sandbox" icon="box">
+    **Free forever.** Includes 200 GPT-4 message credits to try the platform. Supports all core features — chatbots, workflows, agents, knowledge bases, and the plugin marketplace. Suitable for individual exploration and prototyping.
+  </Card>
+  <Card title="Professional" icon="zap">
+    Designed for solo builders and small teams who need higher limits and priority support. Removes the Sandbox credit ceiling and unlocks additional monthly message quotas, larger knowledge base storage, and custom branding.
+  </Card>
+  <Card title="Team" icon="users">
+    Built for organisations that need collaboration features, SSO, advanced permission management, and dedicated support. Includes all Professional features plus higher team-member limits and enterprise-grade SLAs.
+  </Card>
+</CardGroup>
+
+For current pricing and a detailed feature comparison, see the [Dify pricing page](https://dify.ai/pricing).
+
+## Sign up
+
+<Steps>
+  <Step title="Go to Dify Cloud">
+    Navigate to [cloud.dify.ai](https://cloud.dify.ai).
+  </Step>
+  <Step title="Create an account">
+    Sign up with your email address, or use the Google or GitHub OAuth flow for one-click registration.
+
+    If you register with email, check your inbox for a verification message and click the confirmation link before proceeding.
+  </Step>
+  <Step title="Set a workspace name">
+    On first login you are prompted to name your workspace. A workspace is the top-level container for all your apps, knowledge bases, and model provider configurations. You can rename it later in **Settings → Workspace**.
+  </Step>
+</Steps>
+
+## Initial setup
+
+After your workspace is created, complete these one-time configuration steps:
+
+### Add a model provider
+
+Dify Cloud does not include LLM API credits by default beyond the Sandbox free tier. You need to add credentials for at least one model provider:
+
+1. Click your avatar in the top-right corner and select **Settings**.
+2. Navigate to **Model Provider**.
+3. Select a provider (e.g., OpenAI, Anthropic, Azure OpenAI).
+4. Enter your API key and click **Save**.
+
+Once saved, models from that provider are available across all apps in the workspace.
+
+<Info>
+  Dify acts as a proxy — your API key is stored encrypted in the Dify database and is used only to forward requests to the provider. API usage is billed directly by your provider account.
+</Info>
+
+### Configure the default system model
+
+The system model is used internally for features like title generation and suggested questions. Set it under **Settings → Model Provider → System Model Settings**.
+
+## Adding team members
+
+<Steps>
+  <Step title="Open workspace settings">
+    Click your avatar → **Settings** → **Members**.
+  </Step>
+  <Step title="Invite by email">
+    Click **Invite Members**, enter the email address(es) of colleagues, and select a role:
+
+    - **Owner** — full administrative access including billing.
+    - **Admin** — can manage apps, knowledge bases, and members but cannot change billing settings.
+    - **Normal** — can create and edit apps within the workspace.
+  </Step>
+  <Step title="Accept the invitation">
+    Invitees receive an email with a link valid for 72 hours. Once they accept, they appear in the Members list.
+  </Step>
+</Steps>
+
+<Note>
+  The number of workspace members you can invite depends on your plan. Upgrade to Team for higher member limits.
+</Note>
+
+## Configuring model API keys
+
+You can add API keys for multiple providers simultaneously. Common configurations:
+
+| Provider | Where to get the key |
+|----------|---------------------|
+| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| Anthropic | [console.anthropic.com](https://console.anthropic.com) |
+| Azure OpenAI | Azure Portal → your Azure OpenAI resource |
+| Mistral | [console.mistral.ai](https://console.mistral.ai) |
+| Cohere | [dashboard.cohere.com](https://dashboard.cohere.com) |
+
+Each provider may require additional fields beyond the API key (e.g., Azure requires the endpoint URL and deployment name).
+
+## Usage limits and quotas
+
+Dify Cloud enforces soft limits per billing period depending on your plan. Key limits to be aware of:
+
+- **Message credits** — each LLM call consumes credits from your plan's monthly allocation. Sandbox accounts start with 200 GPT-4 credits.
+- **Knowledge base storage** — the total volume of text that can be indexed and stored as embeddings.
+- **Team members** — the maximum number of users in a single workspace.
+- **App publish limit** — the number of simultaneously active/published applications.
+
+You can monitor current usage under **Settings → Billing & Usage**. Upgrade or manage your plan from the same screen.
+
+<Tip>
+  If you are close to a limit, you can reduce embedding storage by deleting or archiving unused knowledge bases, or remove inactive apps to stay within the published app limit.
+</Tip>

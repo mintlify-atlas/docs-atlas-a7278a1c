@@ -1,0 +1,235 @@
+---
+title: Docker Compose deployment
+description: Deploy Dify on a single server using Docker Compose.
+---
+
+Docker Compose is the simplest way to run a self-hosted Dify instance. All services are defined in `docker/docker-compose.yaml` and share configuration via environment variables in `docker/.env`.
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2.0+ (the `docker compose` command, not `docker-compose`)
+- Minimum 2 CPU cores, 4 GiB RAM
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/langgenius/dify.git
+    cd dify/docker
+    ```
+  </Step>
+  <Step title="Copy the environment file">
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+  <Step title="Configure required settings">
+    At minimum, set a strong `SECRET_KEY` in `.env`:
+
+    ```bash
+    # Generate a secure key
+    openssl rand -base64 42
+    ```
+
+    Edit `.env` and replace the default `SECRET_KEY` value with the generated key. See [Production configuration checklist](#production-configuration-checklist) for additional required changes.
+  </Step>
+  <Step title="Start all services">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+  <Step title="Complete initial setup">
+    Visit [http://localhost/install](http://localhost/install) in your browser and follow the setup wizard to create the admin account.
+  </Step>
+</Steps>
+
+## Services
+
+The Docker Compose file defines the following services:
+
+### Core application services
+
+| Service | Image | Port (internal) | Description |
+|---------|-------|-----------------|-------------|
+| `api` | `langgenius/dify-api` | 5001 | Flask API server (Gunicorn + gevent) |
+| `worker` | `langgenius/dify-api` | — | Celery worker (all queues) |
+| `worker_beat` | `langgenius/dify-api` | — | Celery beat (scheduled tasks) |
+| `web` | `langgenius/dify-web` | 3000 | Next.js frontend |
+
+`api` and `worker` use the same Docker image. The `MODE` environment variable selects the startup behavior: `api` starts Gunicorn, `worker` starts Celery.
+
+### Data services
+
+| Service | Image | Port (internal) | Description |
+|---------|-------|-----------------|-------------|
+| `db_postgres` | `postgres:15-alpine` | 5432 | Primary PostgreSQL database |
+| `redis` | `redis:6-alpine` | 6379 | Cache and Celery broker |
+| `weaviate` | `semitechnologies/weaviate:1.27.0` | 8080 | Vector store (default) |
+
+The database service started depends on the `COMPOSE_PROFILES` setting. By default, `postgresql` profile is active.
+
+### Auxiliary services
+
+| Service | Image | Port (internal) | Description |
+|---------|-------|-----------------|-------------|
+| `nginx` | `nginx:latest` | 80, 443 | Reverse proxy, TLS termination |
+| `sandbox` | `langgenius/dify-sandbox:0.2.12` | 8194 | Isolated code execution |
+| `plugin_daemon` | `langgenius/dify-plugin-daemon` | 5002 | Plugin runtime |
+| `ssrf_proxy` | `ubuntu/squid:latest` | 3128 | Outbound HTTP proxy |
+
+### Network topology
+
+All services communicate on the `default` Docker network. The `ssrf_proxy` and services that make outbound HTTP calls (`api`, `worker`, `sandbox`) share a separate `ssrf_proxy_network`. Direct external access is only allowed through `nginx` (ports 80/443) and optionally the plugin daemon (port 5003).
+
+## Volume mounts
+
+Persistent data is stored in the `docker/volumes/` directory:
+
+| Volume path | Service | Contents |
+|-------------|---------|----------|
+| `./volumes/app/storage` | api, worker | Uploaded files, trace data |
+| `./volumes/db/data` | db_postgres | PostgreSQL data directory |
+| `./volumes/redis/data` | redis | Redis persistence |
+| `./volumes/weaviate` | weaviate | Vector index data |
+| `./volumes/sandbox/dependencies` | sandbox | Python package cache |
+| `./volumes/plugin_daemon` | plugin_daemon | Plugin storage |
+
+<Warning>
+Back up the `volumes/` directory regularly. Data loss in `volumes/db/data` means losing all workspaces, applications, and knowledge base metadata.
+</Warning>
+
+## Production configuration checklist
+
+Before exposing a Dify instance to the internet, complete these steps in your `.env` file:
+
+<AccordionGroup>
+  <Accordion title="Generate a SECRET_KEY">
+    The `SECRET_KEY` is used to sign session cookies and encrypt sensitive values in the database. The default key in `.env.example` is **not secure** and must be replaced.
+
+    ```bash
+    openssl rand -base64 42
+    ```
+
+    Set `SECRET_KEY=<generated value>` in `.env`.
+  </Accordion>
+
+  <Accordion title="Change database and Redis passwords">
+    The default passwords (`difyai123456`) are public knowledge. Change them before deployment:
+
+    ```bash .env
+    DB_PASSWORD=<strong-password>
+    REDIS_PASSWORD=<strong-password>
+    CELERY_BROKER_URL=redis://:<strong-password>@redis:6379/1
+    ```
+  </Accordion>
+
+  <Accordion title="Configure storage for production">
+    The default storage backend writes files to the local `volumes/app/storage` directory. For production, use an object storage service:
+
+    **Amazon S3:**
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=s3
+    S3_BUCKET_NAME=your-bucket
+    S3_REGION=us-east-1
+    S3_ACCESS_KEY=your-access-key
+    S3_SECRET_KEY=your-secret-key
+    ```
+
+    **Azure Blob:**
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=azblob
+    AZURE_BLOB_ACCOUNT_NAME=your-account
+    AZURE_BLOB_ACCOUNT_KEY=your-key
+    AZURE_BLOB_CONTAINER_NAME=your-container
+    ```
+
+    **Google Cloud Storage:**
+    ```bash .env
+    STORAGE_TYPE=opendal
+    OPENDAL_SCHEME=gcs
+    GOOGLE_STORAGE_BUCKET_NAME=your-bucket
+    GOOGLE_STORAGE_SERVICE_ACCOUNT_JSON_BASE64=<base64-encoded-service-account-json>
+    ```
+  </Accordion>
+
+  <Accordion title="Configure HTTPS">
+    Set `NGINX_HTTPS_ENABLED=true` and place your TLS certificate and key in `docker/nginx/ssl/`:
+
+    ```bash .env
+    NGINX_HTTPS_ENABLED=true
+    NGINX_SSL_CERT_FILENAME=your-cert.crt
+    NGINX_SSL_CERT_KEY_FILENAME=your-key.key
+    ```
+
+    Alternatively, use the bundled Certbot service for Let's Encrypt certificates:
+
+    ```bash .env
+    NGINX_ENABLE_CERTBOT_CHALLENGE=true
+    CERTBOT_EMAIL=admin@example.com
+    CERTBOT_DOMAIN=dify.example.com
+    ```
+
+    Then start with the certbot profile: `docker compose --profile certbot up -d`.
+  </Accordion>
+
+  <Accordion title="Configure email">
+    Email is required for password reset and member invitations:
+
+    ```bash .env
+    MAIL_TYPE=smtp
+    MAIL_DEFAULT_SEND_FROM=no-reply@example.com
+    SMTP_SERVER=smtp.example.com
+    SMTP_PORT=465
+    SMTP_USERNAME=your-username
+    SMTP_PASSWORD=your-password
+    SMTP_USE_TLS=true
+    ```
+  </Accordion>
+
+  <Accordion title="Set public URLs">
+    If Dify runs behind a reverse proxy or custom domain, set the public-facing URLs:
+
+    ```bash .env
+    CONSOLE_API_URL=https://api.example.com
+    CONSOLE_WEB_URL=https://console.example.com
+    APP_API_URL=https://api.example.com
+    APP_WEB_URL=https://app.example.com
+    FILES_URL=https://api.example.com
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Restarting after configuration changes
+
+After editing `.env`:
+
+```bash
+docker compose up -d
+```
+
+Docker Compose re-creates only the containers whose environment changed.
+
+## Upgrading
+
+See [Upgrading](/self-hosting/upgrade) for step-by-step upgrade instructions.
+
+## Checking service health
+
+```bash
+# View running containers and their status
+docker compose ps
+
+# View logs for a specific service
+docker compose logs -f api
+docker compose logs -f worker
+```
+
+The API service exposes a health endpoint:
+
+```bash
+curl http://localhost/health
+```

@@ -1,0 +1,161 @@
+---
+title: Upgrading
+description: How to upgrade a self-hosted Dify installation safely.
+---
+
+This page covers how to upgrade a Docker Compose–based Dify deployment. Before upgrading, always review the release notes and back up your database.
+
+## Before you upgrade
+
+<Steps>
+  <Step title="Read the release notes">
+    Review the [GitHub releases page](https://github.com/langgenius/dify/releases) for the target version. Look for:
+
+    - Breaking changes in environment variables
+    - Required manual migration steps
+    - Minimum required dependency versions
+    - Known issues
+  </Step>
+  <Step title="Back up your database">
+    Back up the PostgreSQL database before any upgrade:
+
+    ```bash
+    # Back up using pg_dump (runs inside the container)
+    docker compose exec db_postgres pg_dump \
+      -U postgres \
+      -d dify \
+      > dify_backup_$(date +%Y%m%d_%H%M%S).sql
+    ```
+
+    Also back up the `volumes/app/storage` directory if you are using local file storage:
+
+    ```bash
+    tar -czf dify_storage_backup_$(date +%Y%m%d).tar.gz volumes/app/storage
+    ```
+  </Step>
+  <Step title="Note your current version">
+    Record the image tag in your `docker-compose.yaml` (e.g., `langgenius/dify-api:1.13.0`) so you can roll back if needed.
+  </Step>
+</Steps>
+
+## Upgrading with Docker Compose
+
+<Steps>
+  <Step title="Pull the latest repository changes">
+    ```bash
+    cd dify
+    git pull origin main
+    ```
+
+    Or, if you are pinning to a specific version, check out the release tag:
+
+    ```bash
+    git fetch --tags
+    git checkout v1.14.0  # replace with target version
+    ```
+  </Step>
+  <Step title="Review .env changes">
+    Compare your `.env` against the updated `.env.example` to identify new environment variables or changed defaults:
+
+    ```bash
+    diff docker/.env docker/.env.example
+    ```
+
+    Add any new required variables to your `.env` before proceeding.
+  </Step>
+  <Step title="Pull new images">
+    ```bash
+    cd docker
+    docker compose pull
+    ```
+  </Step>
+  <Step title="Restart services">
+    ```bash
+    docker compose up -d
+    ```
+
+    Docker Compose recreates containers using the new images while preserving your volumes.
+  </Step>
+  <Step title="Database migration">
+    Database migrations run automatically on API startup when `MIGRATION_ENABLED=true` (the default). Watch the API logs to confirm migrations complete successfully:
+
+    ```bash
+    docker compose logs -f api
+    ```
+
+    Look for a line indicating that migrations finished. The API begins serving requests only after migrations complete.
+  </Step>
+  <Step title="Verify the upgrade">
+    ```bash
+    # Check that all containers are running
+    docker compose ps
+
+    # Check the health endpoint
+    curl http://localhost/health
+    ```
+
+    Sign in to the console and confirm the version shown in Settings matches the target version.
+  </Step>
+</Steps>
+
+## Rolling back
+
+If the upgrade causes issues:
+
+<Steps>
+  <Step title="Restore the database backup">
+    ```bash
+    # Stop services
+    docker compose down
+
+    # Restore the database
+    docker compose up -d db_postgres
+    cat dify_backup_<timestamp>.sql | docker compose exec -T db_postgres psql -U postgres -d dify
+    ```
+  </Step>
+  <Step title="Revert image tags">
+    Edit `docker-compose.yaml` (or check out the previous git tag) to reference the previous image versions.
+  </Step>
+  <Step title="Restart with old images">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+</Steps>
+
+## Common issues
+
+<AccordionGroup>
+  <Accordion title="Migrations fail on startup">
+    Check the API logs for the specific migration error:
+
+    ```bash
+    docker compose logs api | grep -i "error\|migration"
+    ```
+
+    Common causes:
+    - Database is not running or unreachable
+    - Insufficient database permissions
+    - Disk full
+
+    Fix the underlying issue and restart the API service: `docker compose restart api`.
+  </Accordion>
+
+  <Accordion title="Environment variable not recognized">
+    If a new environment variable is ignored, ensure your `.env` file was updated and that you ran `docker compose up -d` (not just `docker compose restart`). Docker Compose only re-reads `.env` on `up`, not `restart`.
+  </Accordion>
+
+  <Accordion title="Workers not processing tasks">
+    After upgrading, worker tasks may be queued in Redis with the old format. Restart the worker explicitly:
+
+    ```bash
+    docker compose restart worker
+    ```
+
+    If tasks still fail, check worker logs: `docker compose logs -f worker`.
+  </Accordion>
+</AccordionGroup>
+
+## Keeping up to date
+
+Star the [Dify GitHub repository](https://github.com/langgenius/dify) to receive notifications when new releases are published. Major version changes (e.g., 1.x → 2.x) are more likely to require manual migration steps—always read the release notes carefully for these.

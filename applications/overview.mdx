@@ -1,0 +1,125 @@
+---
+title: 'Building applications'
+description: 'Dify offers four application types — Chatbot, Text Generator, Agent, and Workflow App. Choose the type that matches how your users interact with the LLM.'
+---
+
+Every application you build in Dify is one of four types. The type determines the interaction model (single-turn vs. multi-turn vs. agentic), the shape of the API, and what configuration options are available in the Studio.
+
+## Application types
+
+<CardGroup cols={2}>
+  <Card title="Chatbot" icon="message-circle" href="/applications/chatbot">
+    Multi-turn conversational interface with persistent memory. Supports knowledge base attachment, file uploads, voice input/output, and suggested follow-up questions. The API endpoint is `POST /chat-messages`.
+  </Card>
+  <Card title="Text Generator" icon="file-text" href="/applications/text-generator">
+    Single-turn content generation from structured form inputs. Stateless — no conversation history is retained between calls. Supports batch generation via CSV upload. The API endpoint is `POST /completion-messages`.
+  </Card>
+  <Card title="Agent" icon="cpu" href="/applications/agent">
+    Autonomous task executor that calls tools iteratively. Supports ReAct (chain-of-thought) and Function Calling strategies. Attach built-in tools, custom API tools, or MCP tools. The API endpoint is `POST /chat-messages`.
+  </Card>
+  <Card title="Workflow App" icon="git-branch" href="/applications/workflow-app">
+    A published workflow exposed as an application. Input variables are declared in the Start node. Outputs can be plain text or structured JSON. The API endpoint is `POST /workflows/run`.
+  </Card>
+</CardGroup>
+
+## Comparison
+
+| Feature | Chatbot | Text Generator | Agent | Workflow App |
+|---|---|---|---|---|
+| Conversation history | Yes | No | Yes | No |
+| Multi-turn dialogue | Yes | No | Yes | No |
+| Tool use | No | No | Yes | Via nodes |
+| Knowledge base attachment | Yes | Yes | Yes | Via nodes |
+| File uploads | Yes | Yes | Yes | Yes |
+| Voice input/output | Yes | No | Yes | No |
+| Batch processing | No | Yes (CSV) | No | No |
+| Visual node editor | No | No | No | Yes |
+| API endpoint | `/chat-messages` | `/completion-messages` | `/chat-messages` | `/workflows/run` |
+| App mode value | `chat` | `completion` | `agent-chat` | `workflow` |
+
+## Creating an application
+
+<Steps>
+  <Step title="Open the Studio">
+    Navigate to **Studio** in the left sidebar. This is the main workspace for building and managing applications.
+  </Step>
+  <Step title="Create a new app">
+    Click **Create app** in the top-right corner. A modal opens with the four application type options.
+  </Step>
+  <Step title="Choose a type">
+    Select the application type that matches your use case. You cannot change an application's type after creation.
+  </Step>
+  <Step title="Name the app">
+    Enter a name and optional description for the application. Both are visible to your team in the Studio and returned by the `GET /info` API endpoint.
+  </Step>
+  <Step title="Configure and publish">
+    The editor for your chosen type opens. Configure the model, prompt, and any additional features, then click **Publish** to make the application available.
+  </Step>
+</Steps>
+
+<Warning>You cannot change an application's type after it is created. If you need a different interaction model, create a new application.</Warning>
+
+## Application lifecycle
+
+Every application moves through a standard lifecycle:
+
+<Tabs>
+  <Tab title="Draft">
+    The initial state after creation. Changes you make in the Studio editor are saved as draft automatically. Draft changes are not visible to end users or API consumers until you publish.
+
+    Use **Run** in the toolbar to test the draft configuration before publishing.
+  </Tab>
+  <Tab title="Published">
+    Click **Publish** to snapshot the current draft and make it the active version. Publishing is instantaneous — the previous published version remains active until the new version is fully applied, so there is no downtime.
+
+    You can view the publish history and roll back to a previous version from **Settings → Version history**.
+  </Tab>
+  <Tab title="Integrated">
+    Once published, the application is accessible via:
+
+    - **Shareable web URL** — Dify hosts a web interface that you can share directly with users.
+    - **Embedded widget** — Copy an iframe or script snippet from **Access API → Embedded**.
+    - **REST API** — Call the application programmatically using the app's API key.
+  </Tab>
+</Tabs>
+
+## API key management
+
+Each application has its own set of API keys, independent of other applications and the workspace.
+
+<Steps>
+  <Step title="Open API access">
+    In the Studio, open your application and click **API Access** (or **Access API**) in the top-right area.
+  </Step>
+  <Step title="Create a key">
+    Click **Create API key**. Dify generates a key prefixed with `app-`. Copy it immediately — the full key is only displayed once.
+  </Step>
+  <Step title="Use the key">
+    Pass the key in the `Authorization` header of every request:
+
+    ```http
+    Authorization: Bearer app-your-api-key
+    ```
+  </Step>
+  <Step title="Rotate or revoke">
+    Return to **API Access** at any time to revoke a key or create a replacement. Revoking a key immediately invalidates it for all callers.
+  </Step>
+</Steps>
+
+<Note>API keys are scoped to a single application. A key for one app cannot be used to call a different app's endpoints.</Note>
+
+## Retrieving app parameters
+
+Before building a custom UI, call `GET /parameters` to discover the input form fields and features enabled for an application. The response includes the user input form definition, file upload configuration, and feature flags such as speech-to-text or suggested questions.
+
+```bash
+curl https://api.dify.ai/v1/parameters \
+  -H "Authorization: Bearer app-your-api-key"
+```
+
+The `GET /info` endpoint returns the application's name, description, tags, and mode:
+
+```bash
+curl https://api.dify.ai/v1/info \
+  -H "Authorization: Bearer app-your-api-key"
+```

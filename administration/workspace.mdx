@@ -1,0 +1,80 @@
+---
+title: Workspace
+description: Understand how workspaces work in Dify and how to manage workspace settings.
+---
+
+A **workspace** in Dify is a tenant—an isolated environment that contains your applications, knowledge bases, model providers, team members, and billing subscription. Each workspace's data is fully isolated from other workspaces.
+
+## What a workspace contains
+
+- **Applications**: all chatbots, text generators, agents, and workflows you build
+- **Knowledge bases**: document collections used for RAG
+- **Model providers**: API keys for LLM, embedding, and speech providers
+- **Members**: team accounts with assigned roles
+- **Billing plan**: the subscription tier governing usage limits
+
+## Workspace settings
+
+To open workspace settings:
+
+1. Click your workspace name or avatar in the top navigation.
+2. Select **Settings**.
+3. Navigate to the **Workspace** tab.
+
+### Workspace name
+
+You can rename your workspace at any time. The name is visible to all members and appears in invitation emails.
+
+To update the name, send a POST request to `/workspaces/info` with `{"name": "New Name"}`, or use the Settings UI.
+
+### Custom branding (paid plans)
+
+On paid plans, workspace owners can:
+
+- Remove the Dify watermark from deployed web apps (`remove_webapp_brand`)
+- Replace the Dify logo in web apps with a custom logo (`replace_webapp_logo`, SVG or PNG)
+
+These settings are available under **Settings → Workspace → Custom branding**.
+
+## Multiple workspaces
+
+A single Dify account can belong to multiple workspaces. This is useful for:
+
+- Separating production and staging environments
+- Managing multiple client projects under one account
+- Working with teams that each have their own billing plan
+
+### Switching workspaces
+
+1. Click the workspace name in the top navigation bar.
+2. The dropdown shows all workspaces your account belongs to.
+3. Click a workspace to switch to it.
+
+Switching workspaces re-issues your session token scoped to the new workspace. All applications, knowledge bases, and settings shown in the UI are specific to the active workspace.
+
+### Creating a new workspace
+
+On Dify Cloud:
+
+1. Click **Create workspace** in the workspace switcher.
+2. Enter a name.
+3. The new workspace starts on the free Sandbox plan.
+
+On self-hosted deployments, workspaces are created by registering a new account (each registration creates a new workspace) or via the admin API.
+
+## Data isolation
+
+Each workspace is isolated at the database level. Users, applications, knowledge bases, and model configurations from one workspace are never visible to or shared with another workspace, even if the same account belongs to both.
+
+<Warning>
+API keys configured in one workspace are not available to applications in another workspace. You must add provider credentials separately in each workspace.
+</Warning>
+
+## Workspace plan and limits
+
+Each workspace has an active billing plan that governs feature access and usage limits (message count, team members, knowledge base storage, etc.). To view your current plan:
+
+1. Go to **Settings → Billing**.
+2. The current plan and usage against limits are shown.
+
+See [Billing plans](/administration/billing-plans) for details on plan tiers.

@@ -1,0 +1,95 @@
+---
+title: Billing plans
+description: Understand Dify Cloud plan tiers, usage limits, and how to upgrade your workspace.
+---
+
+Dify Cloud offers several plan tiers to match different team sizes and usage needs. Each plan governs the number of messages, team members, applications, and knowledge base storage available to your workspace.
+
+<Note>
+Billing and plan limits apply to **Dify Cloud** only. Self-hosted deployments are not subject to these limits.
+</Note>
+
+## Plan tiers
+
+### Sandbox (free)
+
+The Sandbox plan is free and is automatically assigned to new workspaces. It is intended for evaluation and prototyping.
+
+- Limited monthly message credits (including a Dify-provided OpenAI-compatible quota)
+- 2 team members
+- Limited number of applications
+- Limited knowledge base storage
+- No priority support
+
+### Professional
+
+The Professional plan is designed for individual developers and small teams moving to production.
+
+- Higher monthly message limit
+- More team members
+- More applications and knowledge bases
+- Priority email support
+
+### Team
+
+The Team plan adds collaboration features for growing teams.
+
+- Substantially higher message limits
+- Larger team member allowance
+- Increased knowledge base storage
+- Collaboration features
+- Priority support
+
+### Enterprise
+
+The Enterprise plan is for organizations with advanced security, compliance, and scale requirements.
+
+- Custom message limits
+- Unlimited team members (configurable)
+- SSO via SAML 2.0 / OIDC
+- Dedicated support and SLA
+- Custom contract and invoicing
+- Audit logs and compliance features
+
+<Tip>
+For current pricing and exact limits for each plan, visit [dify.ai/pricing](https://dify.ai/pricing).
+</Tip>
+
+## Viewing your current plan
+
+1. Go to **Settings → Billing** in your workspace.
+2. Your current plan, usage against limits, and renewal date are displayed.
+
+## Usage tracking
+
+Dify tracks usage at the workspace level:
+
+- **Messages**: each round-trip (user message + model response) counts as one message.
+- **Members**: the number of active accounts with access to the workspace.
+- **Applications**: the number of published applications.
+- **Knowledge base storage**: the total size of all uploaded documents across all knowledge bases.
+
+Usage resets at the start of each billing period.
+
+## Upgrading your plan
+
+<Steps>
+  <Step title="Open billing settings">
+    Go to **Settings → Billing** in your workspace.
+  </Step>
+  <Step title="Click Upgrade">
+    Click the **Upgrade** button next to the plan you want.
+  </Step>
+  <Step title="Enter payment details">
+    Complete the checkout flow. Dify uses Stripe for payment processing.
+  </Step>
+  <Step title="Confirm upgrade">
+    Your workspace is upgraded immediately. New limits take effect right away.
+  </Step>
+</Steps>
+
+## Enterprise inquiries
+
+For Enterprise plan pricing, custom contracts, or questions about SSO and compliance features, [contact the Dify sales team](mailto:business@dify.ai).
+
+For AWS deployments, Dify Premium is also available on [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-t22mebxzwjhu6) as an AMI with one-click deployment to your own VPC.

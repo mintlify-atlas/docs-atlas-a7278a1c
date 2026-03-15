@@ -1,0 +1,173 @@
+---
+title: 'Knowledge retrieval node'
+description: 'Retrieve relevant document segments from Dify knowledge bases using semantic, full-text, or hybrid search.'
+---
+
+The **Knowledge Retrieval node** queries one or more knowledge bases and returns the most relevant document segments. The results are typically passed to an LLM node's context slot to ground the model's responses in your data.
+
+## Configuration
+
+### Dataset selection
+
+Select one or more knowledge bases (datasets) to query. When multiple datasets are selected, the node runs retrieval across all of them and merges the results.
+
+```json
+{
+  "dataset_ids": ["abc123", "def456"]
+}
+```
+
+### Query variable
+
+Set `query_variable_selector` to the path of the string variable that holds the search query. This is typically the user's message:
+
+```json
+{
+  "query_variable_selector": ["sys", "query"]
+}
+```
+
+You can also provide an attachment (file or array of files) via `query_attachment_selector` to enable multimodal retrieval on knowledge bases that support it.
+
+## Retrieval modes
+
+<Tabs>
+  <Tab title="Single">
+    The `single` retrieval mode routes the query through a single LLM call to rerank and select segments. You must supply a model configuration:
+
+    ```json
+    {
+      "retrieval_mode": "single",
+      "single_retrieval_config": {
+        "model": {
+          "provider": "openai",
+          "name": "gpt-4o-mini",
+          "mode": "chat",
+          "completion_params": {}
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Multiple">
+    The `multiple` retrieval mode fetches segments from all selected datasets and applies reranking. Configure `top_k` and an optional score threshold:
+
+    ```json
+    {
+      "retrieval_mode": "multiple",
+      "multiple_retrieval_config": {
+        "top_k": 6,
+        "score_threshold": 0.5,
+        "reranking_enable": true,
+        "reranking_mode": "reranking_model",
+        "reranking_model": {
+          "provider": "cohere",
+          "model": "rerank-english-v3.0"
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Reranking
+
+In `multiple` mode two reranking strategies are available:
+
+### Model-based reranking
+
+Uses a dedicated reranking model (e.g., Cohere Rerank) to score each candidate segment against the query. Set `reranking_mode` to `"reranking_model"` and provide the provider and model name.
+
+### Weighted score
+
+Combines vector similarity and keyword match scores using configurable weights. Set `reranking_mode` to `"weighted_score"` and provide the weight configuration:
+
+```json
+{
+  "reranking_mode": "weighted_score",
+  "weights": {
+    "vector_setting": {
+      "vector_weight": 0.7,
+      "embedding_provider_name": "openai",
+      "embedding_model_name": "text-embedding-3-small"
+    },
+    "keyword_setting": {
+      "keyword_weight": 0.3
+    }
+  }
+}
+```
+
+The `vector_weight` and `keyword_weight` values should sum to 1.0.
+
+## Top-K and score threshold
+
+| Parameter | Description |
+|---|---|
+| `top_k` | Maximum number of segments to return |
+| `score_threshold` | Minimum relevance score (0.0–1.0). Segments below this score are excluded. Set to `null` to disable. |
+
+## Metadata filtering
+
+Filter segments by document metadata before retrieval to narrow the search space. Three modes are supported:
+
+| Mode | Description |
+|---|---|
+| `disabled` | No metadata filtering applied |
+| `automatic` | A model automatically infers filter conditions from the query |
+| `manual` | You define explicit filter conditions |
+
+Manual filter conditions use the same comparison operators as the IF/ELSE node:
+
+```json
+{
+  "metadata_filtering_mode": "manual",
+  "metadata_filtering_conditions": {
+    "logical_operator": "and",
+    "conditions": [
+      {
+        "name": "category",
+        "comparison_operator": "is",
+        "value": "technical"
+      },
+      {
+        "name": "published_year",
+        "comparison_operator": "≥",
+        "value": 2023
+      }
+    ]
+  }
+}
+```
+
+Supported comparison operators for metadata: `contains`, `not contains`, `start with`, `end with`, `is`, `is not`, `empty`, `not empty`, `=`, `≠`, `>`, `<`, `≥`, `≤`, `before`, `after`, `in`, `not in`.
+
+## Outputs
+
+The node outputs a single key `result` containing an array of retrieved document segment objects:
+
+```json
+[
+  {
+    "content": "Dify supports multiple LLM providers...",
+    "score": 0.87,
+    "title": "Getting started with Dify",
+    "url": null,
+    "document_name": "dify-docs.pdf",
+    "segment_position": 3,
+    "word_count": 142
+  }
+]
+```
+
+Reference the result array in downstream nodes:
+
+```
+{{#knowledge_node_id.result#}}
+```
+
+Pass it to an LLM node's context by pointing the `context.variable_selector` at this output.
+
+<Tip>
+When querying multiple datasets, increase `top_k` to ensure each dataset has a chance to contribute relevant segments before reranking trims the list.
+</Tip>

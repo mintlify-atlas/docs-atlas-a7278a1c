@@ -1,0 +1,145 @@
+---
+title: 'HTTP request node'
+description: 'Make HTTP calls to external APIs from a Dify workflow, with variable interpolation, authentication, and response parsing.'
+---
+
+The **HTTP Request node** sends an HTTP request to any external endpoint and makes the response body, headers, and status code available as workflow variables.
+
+## Configuration
+
+### Method and URL
+
+Select the HTTP method and enter the target URL. Workflow variables can be interpolated anywhere in the URL:
+
+```
+https://api.example.com/v1/users/{{#start.user_id#}}/profile
+```
+
+Supported methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+
+### Headers
+
+Enter headers as newline-separated `Key: Value` pairs. Variable interpolation is supported:
+
+```
+Content-Type: application/json
+X-Request-ID: {{#start.trace_id#}}
+```
+
+### Query parameters
+
+Enter query parameters in the same `Key: Value` format. They are appended to the URL automatically:
+
+```
+page: 1
+limit: {{#start.page_size#}}
+```
+
+### Request body
+
+Choose the body type and provide the payload:
+
+<Tabs>
+  <Tab title="JSON">
+    ```json
+    {
+      "query": "{{#sys.query#}}",
+      "user_id": "{{#start.user_id#}}"
+    }
+    ```
+  </Tab>
+  <Tab title="Form data">
+    Enter `key: value` pairs. Each pair becomes a `multipart/form-data` field.
+  </Tab>
+  <Tab title="URL-encoded">
+    Enter `key: value` pairs. Each pair is URL-encoded and sent as `application/x-www-form-urlencoded`.
+  </Tab>
+  <Tab title="Raw text">
+    Paste any text body. Variable interpolation is supported within the text.
+  </Tab>
+  <Tab title="Binary">
+    Reference a file variable to send raw binary data. Useful for file upload endpoints.
+  </Tab>
+</Tabs>
+
+## Authentication
+
+<AccordionGroup>
+  <Accordion title="No authentication">
+    Set `authorization.type` to `"no-auth"`. No credentials are attached to the request.
+  </Accordion>
+  <Accordion title="API key">
+    Set `authorization.type` to `"api-key"` and choose the key delivery method:
+
+    - **Bearer**: sends `Authorization: Bearer <api_key>`
+    - **Basic**: base64-encodes the key and sends `Authorization: Basic <encoded>`
+    - **Custom**: sends the key in any header you specify via the `header` field
+
+    ```json
+    {
+      "authorization": {
+        "type": "api-key",
+        "config": {
+          "type": "bearer",
+          "api_key": "sk-..."
+        }
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Do not hard-code secrets directly in the `api_key` field. Store them as environment variables in the workflow and reference them via `{{#env.variable_name#}}`.
+</Warning>
+
+## Timeout settings
+
+Configure per-request timeouts in seconds. If not set, values fall back to the platform defaults:
+
+```json
+{
+  "timeout": {
+    "connect": 10,
+    "read": 60,
+    "write": 20
+  }
+}
+```
+
+Platform-wide maximums are controlled by `HTTP_REQUEST_MAX_CONNECT_TIMEOUT`, `HTTP_REQUEST_MAX_READ_TIMEOUT`, and `HTTP_REQUEST_MAX_WRITE_TIMEOUT`.
+
+## SSL verification
+
+Set `ssl_verify` to `false` to skip certificate verification for self-signed or internal certificates. This defaults to the platform-level `HTTP_REQUEST_NODE_SSL_VERIFY` setting.
+
+## Outputs
+
+| Output key | Type | Description |
+|---|---|---|
+| `status_code` | number | HTTP response status code |
+| `body` | string | Response body as text (empty when the response is a file) |
+| `headers` | object | Response headers as a key-value map |
+| `files` | array | Downloaded files when the response content type indicates a binary file |
+
+Reference outputs in downstream nodes:
+
+```
+{{#http_node_id.status_code#}}
+{{#http_node_id.body#}}
+{{#http_node_id.headers#}}
+```
+
+## File responses
+
+When the response `Content-Type` indicates a binary file (e.g., `image/png`, `application/pdf`, `audio/*`, `video/*`) or includes a `Content-Disposition: attachment` header, the node stores the response as a file and populates the `files` output array instead of `body`.
+
+Files can then be passed to other nodes that accept file inputs, such as the Document Extractor node.
+
+## Error handling
+
+If the server returns a non-2xx status code and the node has an error strategy or retry configured, the node is marked as failed with the status code in the error message. When **Continue on error** is enabled the workflow proceeds with the last received outputs.
+
+<Tip>
+Use a Code node immediately after the HTTP Request node to parse and validate the JSON body before passing data further down the workflow. This isolates error handling for malformed responses.
+</Tip>

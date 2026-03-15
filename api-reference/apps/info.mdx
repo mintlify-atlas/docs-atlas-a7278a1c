@@ -1,0 +1,51 @@
+---
+title: App Info
+description: Retrieve basic information about the application.
+---
+
+## Endpoint
+
+```
+GET /info
+```
+
+Returns the name, description, tags, mode, and author of the application associated with the API key.
+
+## Response
+
+<ResponseField name="name" type="string">
+  The application's display name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  The application's description text.
+</ResponseField>
+
+<ResponseField name="tags" type="array">
+  List of tag names attached to the application.
+</ResponseField>
+
+<ResponseField name="mode" type="string">
+  The application mode. One of: `chat`, `agent-chat`, `advanced-chat`, `completion`, `workflow`.
+</ResponseField>
+
+<ResponseField name="author_name" type="string">
+  Display name of the account that created the application.
+</ResponseField>
+
+## Example
+
+```bash
+curl https://api.dify.ai/v1/info \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "name": "Customer Support Bot",
+  "description": "AI-powered support assistant for product queries.",
+  "tags": ["support", "customer-facing"],
+  "mode": "chat",
+  "author_name": "Jane Smith"
+}
+```

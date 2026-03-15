@@ -1,0 +1,94 @@
+---
+title: Self-hosting overview
+description: Deploy Dify on your own infrastructure for data privacy, compliance, and customization.
+---
+
+Self-hosting Dify gives you full control over where your data lives and how the platform is configured. It is the preferred option for organizations with data residency requirements, compliance mandates, or a need to integrate with internal systems.
+
+## Why self-host
+
+- **Data privacy**: all conversation data, user files, and model interactions stay within your infrastructure.
+- **Compliance**: meet GDPR, HIPAA, SOC 2, or other regulatory requirements by controlling data location and access.
+- **Customization**: modify configuration, integrate with internal identity providers, and extend the platform.
+- **Cost control**: use your own model API keys and cloud storage—no per-message fees.
+
+## Deployment options
+
+<CardGroup cols={2}>
+  <Card title="Docker Compose" icon="docker" href="/self-hosting/docker-compose">
+    Single-server deployment. The quickest way to get Dify running. Suitable for small teams and development.
+  </Card>
+  <Card title="Kubernetes" icon="server" href="/self-hosting/kubernetes">
+    Highly-available, horizontally-scalable deployment. Recommended for production workloads.
+  </Card>
+</CardGroup>
+
+## System requirements
+
+### Minimum (development / small teams)
+
+| Resource | Requirement |
+|----------|-------------|
+| CPU | 2 cores |
+| RAM | 4 GiB |
+| Disk | 20 GiB |
+
+### Recommended (production)
+
+| Resource | Requirement |
+|----------|-------------|
+| CPU | 4+ cores |
+| RAM | 8+ GiB |
+| Disk | 50+ GiB SSD |
+
+Disk requirements grow with knowledge base storage. Budget additional space for vector store data and uploaded files.
+
+## Architecture
+
+A Dify self-hosted deployment consists of the following components:
+
+| Component | Technology | Description |
+|-----------|-----------|-------------|
+| Frontend | Next.js | Web console and app interfaces |
+| Backend API | Python (Flask + Gunicorn) | REST API, business logic |
+| Worker | Python (Celery) | Async tasks: indexing, tracing, email |
+| Worker Beat | Python (Celery Beat) | Scheduled periodic tasks |
+| Database | PostgreSQL 15 | Primary data store |
+| Cache / Queue | Redis 6 | Session cache, Celery broker, pub/sub |
+| Vector store | Weaviate (default) | Embedding storage for RAG |
+| Sandbox | DifySandbox | Isolated code execution for Code nodes |
+| Plugin daemon | Go service | Plugin runtime management |
+| SSRF proxy | Squid | Outbound HTTP proxy for security |
+| Reverse proxy | Nginx | TLS termination, routing |
+
+<Info>
+The vector store is pluggable. Dify supports Weaviate (default), Qdrant, Milvus, pgvector, Chroma, OpenSearch, Elasticsearch, and many more. See [Environment configuration](/self-hosting/environment-config) for the full list.
+</Info>
+
+## Docker images
+
+Official Docker images are published to Docker Hub:
+
+| Image | Description |
+|-------|-------------|
+| `langgenius/dify-api` | Backend API and Celery worker (same image, different `MODE`) |
+| `langgenius/dify-web` | Next.js frontend |
+| `langgenius/dify-sandbox` | Code execution sandbox |
+| `langgenius/dify-plugin-daemon` | Plugin daemon |
+
+Images are tagged by version (e.g., `langgenius/dify-api:1.13.0`). Always pin to a specific version in production.
+
+## Getting started
+
+The fastest way to deploy Dify is with Docker Compose:
+
+```bash
+git clone https://github.com/langgenius/dify.git
+cd dify/docker
+cp .env.example .env
+docker compose up -d
+```
+
+Then visit [http://localhost/install](http://localhost/install) to complete initial setup.
+
+For detailed instructions, see [Docker Compose deployment](/self-hosting/docker-compose).

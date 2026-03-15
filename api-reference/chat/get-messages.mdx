@@ -1,0 +1,112 @@
+---
+title: Get Messages
+description: Retrieve the message history for a conversation, paginated from oldest to newest.
+---
+
+## Endpoint
+
+```
+GET /messages
+```
+
+## Query Parameters
+
+<ParamField query="conversation_id" type="string" required>
+  The UUID of the conversation to retrieve messages for.
+</ParamField>
+
+<ParamField query="user" type="string" required>
+  The end user identifier. Must match the user associated with the conversation.
+</ParamField>
+
+<ParamField query="first_id" type="string">
+  The ID of the first message in the current page. Used for cursor-based pagination. Omit to start from the most recent messages.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of messages to return. Must be between `1` and `100`.
+</ParamField>
+
+## Response
+
+<ResponseField name="limit" type="integer">
+  The number of messages returned.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more messages before the first message in this page.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of message objects ordered oldest to newest.
+
+  <Expandable title="Message object">
+    <ResponseField name="id" type="string">
+      Message ID.
+    </ResponseField>
+    <ResponseField name="conversation_id" type="string">
+      Conversation ID.
+    </ResponseField>
+    <ResponseField name="parent_message_id" type="string">
+      ID of the parent message (for branched conversations).
+    </ResponseField>
+    <ResponseField name="inputs" type="object">
+      Input variables used for this message.
+    </ResponseField>
+    <ResponseField name="query" type="string">
+      The user query text.
+    </ResponseField>
+    <ResponseField name="answer" type="string">
+      The model's response text.
+    </ResponseField>
+    <ResponseField name="feedback" type="object">
+      User feedback, if any. Contains `rating` (`"like"` | `"dislike"` | `null`).
+    </ResponseField>
+    <ResponseField name="retriever_resources" type="array">
+      Knowledge base documents retrieved for this message.
+    </ResponseField>
+    <ResponseField name="agent_thoughts" type="array">
+      Agent reasoning steps (agent mode only).
+    </ResponseField>
+    <ResponseField name="message_files" type="array">
+      Files associated with the message.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Message status.
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message if the generation failed.
+    </ResponseField>
+    <ResponseField name="created_at" type="integer">
+      Unix timestamp of message creation.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl 'https://api.dify.ai/v1/messages?conversation_id=3fa85f64-5717-4562-b3fc-2c963f66afa6&user=user-abc123&limit=20' \
+  -H 'Authorization: Bearer {api_key}'
+```
+
+```json Response
+{
+  "limit": 20,
+  "has_more": false,
+  "data": [
+    {
+      "id": "9da23599-e713-473b-982c-4328d4f5c78a",
+      "conversation_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "query": "What is LangChain?",
+      "answer": "LangChain is a framework for building LLM-powered applications.",
+      "feedback": null,
+      "retriever_resources": [],
+      "agent_thoughts": [],
+      "message_files": [],
+      "status": "normal",
+      "created_at": 1705395332
+    }
+  ]
+}
+```

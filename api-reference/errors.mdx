@@ -1,0 +1,79 @@
+---
+title: Errors
+description: HTTP status codes and error codes returned by the Dify API.
+---
+
+## Error Response Format
+
+All error responses share the same structure:
+
+```json
+{
+  "code": "error_code",
+  "message": "Human-readable description of what went wrong.",
+  "status": 400
+}
+```
+
+## HTTP Status Codes
+
+| Status | Meaning |
+|---|---|
+| `200` | Success |
+| `201` | Created |
+| `204` | No Content (successful delete) |
+| `400` | Bad Request |
+| `401` | Unauthorized |
+| `403` | Forbidden |
+| `404` | Not Found |
+| `413` | Payload Too Large |
+| `415` | Unsupported Media Type |
+| `429` | Too Many Requests |
+| `500` | Internal Server Error |
+
+## Error Codes
+
+### Application Errors
+
+| Code | Status | Description |
+|---|---|---|
+| `app_unavailable` | 400 | The application is unavailable. Check your app configuration. |
+| `not_completion_app` | 400 | The API route requires a Completion-mode app. |
+| `not_chat_app` | 400 | The API route requires a Chat-mode app. |
+| `not_workflow_app` | 400 | The API route requires a Workflow-mode app. |
+| `conversation_completed` | 400 | The conversation has ended. Start a new conversation. |
+
+### Provider / Model Errors
+
+| Code | Status | Description |
+|---|---|---|
+| `provider_not_initialize` | 400 | No valid model provider credentials found. Go to **Settings → Model Provider** to configure credentials. |
+| `provider_quota_exceeded` | 400 | Your model provider quota has been exhausted. Configure your own provider credentials. |
+| `model_currently_not_support` | 400 | The selected model is not currently supported. |
+| `completion_request_error` | 400 | The completion request to the model provider failed. |
+
+### Auth Errors
+
+| Code | Status | Description |
+|---|---|---|
+| `unauthorized` | 401 | Invalid or missing API key. |
+
+### Resource Errors
+
+| Code | Status | Description |
+|---|---|---|
+| `not_found` | 404 | The requested resource does not exist. |
+| `invalid_param` | 400 | One or more request parameters are invalid. |
+
+### Audio / File Errors
+
+| Code | Status | Description |
+|---|---|---|
+| `no_audio_uploaded` | 400 | No audio file was included in the request. |
+| `audio_too_large` | 413 | The audio file exceeds the maximum allowed size. |
+| `unsupported_audio_type` | 415 | The audio file format is not supported. |
+| `provider_not_support_speech_to_text` | 400 | The configured model provider does not support speech-to-text. |
+| `no_file_uploaded` | 400 | No file was included in the request. |
+| `too_many_files` | 400 | Only one file can be uploaded per request. |
+| `unsupported_file_type` | 415 | The file format is not supported. |
+| `file_too_large` | 413 | The file exceeds the maximum allowed size. |

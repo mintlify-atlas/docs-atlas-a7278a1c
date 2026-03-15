@@ -1,0 +1,110 @@
+---
+title: Create Completion
+description: Generate a completion for a Completion-mode application.
+---
+
+<Note>
+This endpoint is for **Completion** application types only. Use `/chat-messages` for Chat-mode apps.
+</Note>
+
+## Endpoint
+
+```
+POST /completion-messages
+```
+
+## Request
+
+<ParamField body="inputs" type="object" required>
+  Key-value pairs of variable inputs defined in the app's prompt template. All required variables must be provided.
+</ParamField>
+
+<ParamField body="response_mode" type="string" required>
+  Response delivery mode:
+  - `blocking` — wait for the complete response.
+  - `streaming` — stream via Server-Sent Events (SSE).
+</ParamField>
+
+<ParamField body="user" type="string" required>
+  A unique identifier for the end user. Defined by your application.
+</ParamField>
+
+<ParamField body="files" type="array">
+  Files to attach to the request. Each object:
+  - `type` (string) — file type, e.g. `image`.
+  - `transfer_method` (string) — `remote_url` or `local_file`.
+  - `url` (string) — file URL when `transfer_method` is `remote_url`.
+  - `upload_file_id` (string) — file ID from the upload endpoint when `transfer_method` is `local_file`.
+</ParamField>
+
+## Response
+
+### Blocking mode
+
+<ResponseField name="message_id" type="string">
+  Unique ID of the generated message.
+</ResponseField>
+
+<ResponseField name="mode" type="string">
+  App mode. Value: `completion`.
+</ResponseField>
+
+<ResponseField name="answer" type="string">
+  The generated completion text.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Additional metadata including token usage.
+</ResponseField>
+
+<ResponseField name="created_at" type="integer">
+  Unix timestamp of creation.
+</ResponseField>
+
+### Streaming mode
+
+SSE stream with the same event types as the chat endpoint: `message`, `message_end`, `message_replace`, and `error`.
+
+## Examples
+
+<CodeGroup>
+
+```bash Blocking
+curl -X POST https://api.dify.ai/v1/completion-messages \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "inputs": {"topic": "artificial intelligence"},
+    "response_mode": "blocking",
+    "user": "user-abc123"
+  }'
+```
+
+```bash Streaming
+curl -X POST https://api.dify.ai/v1/completion-messages \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "inputs": {"topic": "machine learning"},
+    "response_mode": "streaming",
+    "user": "user-abc123"
+  }'
+```
+
+</CodeGroup>
+
+```json Blocking Response
+{
+  "message_id": "5ad4cb98-f0c7-4085-b384-88c403be6290",
+  "mode": "completion",
+  "answer": "Artificial intelligence (AI) is the simulation of human intelligence processes by computer systems...",
+  "metadata": {
+    "usage": {
+      "prompt_tokens": 20,
+      "completion_tokens": 80,
+      "total_tokens": 100
+    }
+  },
+  "created_at": 1705395332
+}
+```

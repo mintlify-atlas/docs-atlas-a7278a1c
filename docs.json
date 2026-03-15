@@ -1,122 +1,208 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Dify",
+  "theme": "maple",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0440d4",
+    "light": "#5da0f3",
+    "dark": "#0440d4"
   },
   "favicon": "/favicon.svg",
+  "logo": {
+    "light": "https://media.brand.dev/e8bfec85-3c14-484f-8b8b-c549c0380636.png",
+    "dark": "https://media.brand.dev/e8bfec85-3c14-484f-8b8b-c549c0380636.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/langgenius/dify"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/langgenius/dify",
+      "twitter": "https://twitter.com/dify_ai",
+      "discord": "https://discord.gg/FngNHpbcY7"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "key-concepts"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Getting Started",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "getting-started/cloud",
+              "getting-started/self-hosting",
+              "getting-started/docker-compose",
+              "getting-started/environment-variables"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Core Features",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "features/workflow",
+              "features/agentic-ai",
+              "features/rag-pipeline",
+              "features/prompt-ide",
+              "features/model-support",
+              "features/tools"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Building Applications",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "applications/overview",
+              "applications/chatbot",
+              "applications/text-generator",
+              "applications/agent",
+              "applications/workflow-app"
+            ]
+          },
+          {
+            "group": "Knowledge & RAG",
+            "pages": [
+              "knowledge/overview",
+              "knowledge/creating-datasets",
+              "knowledge/document-ingestion",
+              "knowledge/retrieval-settings",
+              "knowledge/embedding-models"
+            ]
+          },
+          {
+            "group": "Models & Providers",
+            "pages": [
+              "models/overview",
+              "models/supported-providers",
+              "models/configuring-models",
+              "models/custom-model-providers"
+            ]
+          },
+          {
+            "group": "Plugins & Extensions",
+            "pages": [
+              "plugins/overview",
+              "plugins/installing-plugins",
+              "plugins/mcp-integration",
+              "plugins/custom-tools"
+            ]
+          },
+          {
+            "group": "Workflow Nodes",
+            "pages": [
+              "workflow-nodes/overview",
+              "workflow-nodes/llm",
+              "workflow-nodes/knowledge-retrieval",
+              "workflow-nodes/code",
+              "workflow-nodes/http-request",
+              "workflow-nodes/agent",
+              "workflow-nodes/iteration",
+              "workflow-nodes/conditional"
+            ]
+          },
+          {
+            "group": "LLMOps & Observability",
+            "pages": [
+              "llmops/overview",
+              "llmops/logs-and-annotations",
+              "llmops/monitoring",
+              "llmops/tracing-integrations"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "administration/workspace",
+              "administration/members-and-roles",
+              "administration/billing-plans",
+              "administration/sso-and-auth"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/overview",
+              "self-hosting/docker-compose",
+              "self-hosting/kubernetes",
+              "self-hosting/environment-config",
+              "self-hosting/upgrade"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/introduction",
+              "api-reference/authentication",
+              "api-reference/errors"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Chat & Completion",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/chat/send-message",
+              "api-reference/chat/stop-message",
+              "api-reference/chat/get-messages",
+              "api-reference/chat/conversations"
+            ]
+          },
+          {
+            "group": "Completion Apps",
+            "pages": [
+              "api-reference/completion/create",
+              "api-reference/completion/stop"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "api-reference/workflows/run",
+              "api-reference/workflows/stop",
+              "api-reference/workflows/logs"
+            ]
+          },
+          {
+            "group": "Knowledge / Datasets",
+            "pages": [
+              "api-reference/datasets/create-dataset",
+              "api-reference/datasets/list-datasets",
+              "api-reference/datasets/create-document",
+              "api-reference/datasets/list-documents",
+              "api-reference/datasets/delete-document",
+              "api-reference/datasets/retrieve"
+            ]
+          },
+          {
+            "group": "Files & Audio",
+            "pages": [
+              "api-reference/files/upload",
+              "api-reference/audio/text-to-speech",
+              "api-reference/audio/speech-to-text"
+            ]
+          },
+          {
+            "group": "Apps & Metadata",
+            "pages": [
+              "api-reference/apps/info",
+              "api-reference/apps/parameters",
+              "api-reference/apps/meta"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

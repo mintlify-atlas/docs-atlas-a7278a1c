@@ -1,0 +1,149 @@
+---
+title: 'Conditional (IF/ELSE) node'
+description: 'Branch workflow execution based on string, number, array, boolean, or null conditions with AND/OR logic.'
+---
+
+The **IF/ELSE node** (also called the Conditional node) evaluates one or more logical conditions and routes execution to a different downstream branch depending on which conditions are met.
+
+## How branching works
+
+The node defines a list of **cases**. Each case has its own set of conditions. The engine evaluates cases in order and follows the edge for the first case whose conditions are satisfied. If no case matches, execution follows the `else` edge.
+
+```
+IF   condition group 1  → branch A
+ELSE IF condition group 2  → branch B
+ELSE                    → branch C
+```
+
+Each case maps to a named output handle. Connect different downstream nodes to each handle to build divergent paths.
+
+## Condition operators
+
+The full set of supported comparison operators:
+
+### String and array operators
+
+| Operator | Description |
+|---|---|
+| `contains` | Value contains the given substring or array element |
+| `not contains` | Value does not contain the substring or element |
+| `start with` | String starts with the given prefix |
+| `end with` | String ends with the given suffix |
+| `is` | Exact equality |
+| `is not` | Not equal |
+| `empty` | Value is empty string, null, or empty array |
+| `not empty` | Value is non-empty |
+| `in` | Value is in the given list |
+| `not in` | Value is not in the given list |
+| `all of` | All elements of the array match the given value |
+
+### Number operators
+
+| Operator | Description |
+|---|---|
+| `=` | Equal |
+| `≠` | Not equal |
+| `>` | Greater than |
+| `<` | Less than |
+| `≥` | Greater than or equal |
+| `≤` | Less than or equal |
+| `null` | Value is null |
+| `not null` | Value is not null |
+
+### File operators
+
+| Operator | Description |
+|---|---|
+| `exists` | File variable is set |
+| `not exists` | File variable is not set |
+
+## AND / OR logic
+
+Each case specifies a `logical_operator` that controls how its conditions are combined:
+
+- `and`: all conditions in the case must be true
+- `or`: at least one condition must be true
+
+Conditions within a case cannot mix AND and OR—set the operator at the case level.
+
+## Multiple cases (IF / ELSE IF / ELSE)
+
+Define multiple cases to create a multi-branch conditional:
+
+```json
+{
+  "type": "if-else",
+  "data": {
+    "cases": [
+      {
+        "case_id": "case_1",
+        "logical_operator": "and",
+        "conditions": [
+          {
+            "variable_selector": ["classify_node_id", "category"],
+            "comparison_operator": "is",
+            "value": "technical"
+          },
+          {
+            "variable_selector": ["classify_node_id", "confidence"],
+            "comparison_operator": "≥",
+            "value": "0.8"
+          }
+        ]
+      },
+      {
+        "case_id": "case_2",
+        "logical_operator": "or",
+        "conditions": [
+          {
+            "variable_selector": ["classify_node_id", "category"],
+            "comparison_operator": "is",
+            "value": "billing"
+          },
+          {
+            "variable_selector": ["classify_node_id", "category"],
+            "comparison_operator": "is",
+            "value": "account"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The edge for `case_1` fires when the category is `technical` **and** confidence is at least 0.8. The edge for `case_2` fires when the category is either `billing` **or** `account`. If neither matches, the `else` edge fires.
+
+## Sub-variable conditions
+
+For conditions on object properties, use the `sub_variable_condition` field to match against a specific key inside an object variable:
+
+```json
+{
+  "variable_selector": ["http_node_id", "body"],
+  "comparison_operator": "contains",
+  "value": "error",
+  "sub_variable_condition": {
+    "logical_operator": "and",
+    "conditions": [
+      {
+        "key": "status",
+        "comparison_operator": "is not",
+        "value": "ok"
+      }
+    ]
+  }
+}
+```
+
+## Connecting branches
+
+In the workflow editor, each case produces a labelled output handle on the IF/ELSE node. Connect each handle to the node that should execute when that case matches:
+
+- The `case_1` handle → your high-confidence technical handler
+- The `case_2` handle → your billing/account handler
+- The `else` handle → a fallback or error-response node
+
+<Note>
+Branches that do not converge before an End node create independent termination points. You can have separate End nodes for each branch, or merge branches back together using a subsequent node that accepts inputs from multiple sources.
+</Note>

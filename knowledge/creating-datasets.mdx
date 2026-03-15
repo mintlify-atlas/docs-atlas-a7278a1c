@@ -1,0 +1,124 @@
+---
+title: 'Creating datasets'
+description: 'Create and manage Dify knowledge base datasets: import documents from files, Notion, or websites, configure dataset settings, and monitor document processing status.'
+keywords: ['create dataset', 'knowledge base', 'import documents', 'dataset settings', 'document management']
+---
+
+A dataset organises a collection of documents under a shared indexing and retrieval configuration. This page walks through creating a dataset, importing documents, and managing them over time.
+
+## Create a dataset
+
+<Steps>
+  <Step title="Open the Knowledge section">
+    In the top navigation bar, click **Knowledge**. This lists all datasets you have access to.
+  </Step>
+  <Step title="Click Create dataset">
+    Click the **+ Create dataset** button in the top-right corner.
+  </Step>
+  <Step title="Choose an import method">
+    Select how you want to bring in your first documents. You can also skip this step and add documents later.
+  </Step>
+  <Step title="Configure dataset settings">
+    Set the dataset name, description, permission, indexing technique, and embedding model (for high-quality indexing). Click **Save** to create the dataset.
+  </Step>
+</Steps>
+
+## Dataset settings
+
+| Setting | Description |
+|---------|-------------|
+| **Name** | Required. Up to 40 characters. Must be unique within your workspace. |
+| **Description** | Optional. Up to 400 characters. Used as the default retrieval tool description when the dataset is attached to an agent. |
+| **Permission** | Controls who can use this dataset. Options: `only_me`, `all_team_members`, or `partial_members`. |
+| **Indexing technique** | `high_quality` (embedding-based) or `economy` (keyword-only). Cannot be changed after documents are indexed. |
+| **Embedding model** | Required for high-quality indexing. Bound at dataset creation. Changing it requires re-indexing all documents. |
+
+## Import options
+
+### Local files
+
+Upload files directly from your computer. Dify extracts text from each file, cleans it, and splits it into segments ready for indexing.
+
+Supported file types include: `txt`, `md`, `mdx`, `pdf`, `html`, `htm`, `xlsx`, `xls`, `docx`, `csv`, `eml`, `msg`, `pptx`, `ppt`, `xml`, `epub`.
+
+<Info>
+The `.doc` (legacy Word) and `.ppt` (legacy PowerPoint) formats require the Unstructured ETL service. Set `ETL_TYPE=Unstructured` in your environment and configure `UNSTRUCTURED_API_URL` and `UNSTRUCTURED_API_KEY`.
+</Info>
+
+### Notion pages
+
+Connect your Notion workspace in **Settings → Data Sources** first, then select the pages or databases you want to import. Dify fetches the page content through the Notion API and converts it to plain text segments.
+
+### Website crawl
+
+Enter a URL and Dify will crawl the page (or multiple pages) to extract text. Three web extraction providers are supported:
+
+| Provider | Configuration |
+|----------|---------------|
+| **Firecrawl** | Set `FIRECRAWL_API_KEY` in your environment. |
+| **WaterCrawl** | Set `WATERCRAWL_API_URL` and credentials. |
+| **Jina Reader** | Set `JINAAI_API_KEY` (or use the unauthenticated endpoint). |
+
+### API upload
+
+Use the Dify Service API to create documents programmatically. Authenticate with a dataset API key and `POST` to `/datasets/{dataset_id}/document/create-by-file` or `/datasets/{dataset_id}/document/create-by-text`.
+
+```bash
+curl -X POST 'https://api.dify.ai/v1/datasets/{dataset_id}/document/create-by-text' \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "My document",
+    "text": "Content goes here.",
+    "indexing_technique": "high_quality",
+    "process_rule": {"mode": "automatic"}
+  }'
+```
+
+## Managing documents
+
+### Add documents
+
+Open a dataset and click **Add file** to upload more documents. You can also import additional Notion pages or crawl more URLs from the same screen.
+
+### Enable and disable
+
+Toggle a document's enabled state using the switch next to its name. Disabled documents are excluded from retrieval without being deleted. You can also batch-enable or batch-disable documents with the **Status** action menu:
+
+```bash
+# Batch-disable documents via API
+PATCH /datasets/{dataset_id}/documents/status/disable
+{
+  "document_ids": ["doc-id-1", "doc-id-2"]
+}
+```
+
+Valid actions are `enable`, `disable`, `archive`, and `un_archive`.
+
+### Delete documents
+
+Select one or more documents and click **Delete**. Deletion removes the document, all its segments, and their vectors from the index. This cannot be undone.
+
+## Document processing status
+
+After you add a document, Dify processes it through several stages. The displayed status is derived from the internal `indexing_status` field:
+
+| Displayed status | Meaning |
+|------------------|---------|
+| **Queuing** | Document is waiting for a worker to pick it up (`indexing_status = waiting`). |
+| **Indexing** | Document is actively being parsed, cleaned, split, or indexed. |
+| **Available** | Processing completed successfully; document is enabled and searchable. |
+| **Disabled** | Processing completed but document has been manually disabled. |
+| **Archived** | Document has been archived and excluded from retrieval. |
+| **Error** | Processing failed. Hover over the status badge to see the error message. |
+| **Paused** | Processing was paused manually before completion. |
+
+## Dataset usage statistics
+
+The dataset overview page shows:
+
+- **Total documents** — number of documents in the dataset.
+- **Total available documents** — documents that are `completed`, `enabled`, and not `archived`.
+- **Query count** — how many times this dataset has been queried from applications.
+
+Detailed per-document statistics (word count, indexing latency, segment count) are shown in the document detail view.

@@ -1,0 +1,124 @@
+---
+title: 'Iteration node'
+description: 'Loop over an array and run a sub-workflow for each item, with support for parallel execution and configurable error handling.'
+---
+
+The **Iteration node** iterates over an array variable and processes each element through an inner sub-workflow (the iteration body). The outputs of each iteration are collected into an output array.
+
+## Configuration
+
+### Input array
+
+Set `iterator_selector` to the path of the array variable to iterate over:
+
+```json
+{
+  "iterator_selector": ["knowledge_node_id", "result"]
+}
+```
+
+The selector can point to any array-type output from a previous node—arrays of strings, numbers, objects, or files.
+
+### Output selector
+
+Set `output_selector` to the path of the variable inside the iteration body that should be collected as the output for each iteration pass:
+
+```json
+{
+  "output_selector": ["inner_llm_node_id", "text"]
+}
+```
+
+After the iteration completes, the Iteration node's `output` variable contains an array of all collected values.
+
+## Inside the iteration body
+
+Within the iteration body, two special variables are available:
+
+| Variable | Type | Description |
+|---|---|---|
+| `{{#iteration_node_id.item#}}` | any | The current array element being processed |
+| `{{#iteration_node_id.index#}}` | number | Zero-based index of the current element |
+
+For example, if your iteration array contains document segment objects and you want to summarize each one:
+
+```
+System: Summarize the following document segment in one sentence.
+
+User: {{#iteration_node_id.item#}}
+```
+
+## Parallel execution
+
+Enable `is_parallel` to process multiple items concurrently:
+
+```json
+{
+  "is_parallel": true,
+  "parallel_nums": 5
+}
+```
+
+`parallel_nums` controls the maximum number of items processed simultaneously (default: 10).
+
+<Note>
+Parallel mode can significantly reduce total execution time for independent operations, but it increases concurrent model API usage. Be mindful of rate limits on your LLM provider.
+</Note>
+
+## Flatten output
+
+When `flatten_output` is `true` (the default) and every iteration produces an array, the results are flattened into a single array. Set it to `false` to get an array of arrays.
+
+```json
+{
+  "flatten_output": true
+}
+```
+
+## Error handling
+
+Three modes control what happens when an iteration item fails:
+
+| Mode | Description |
+|---|---|
+| `terminated` | The first failure stops the entire iteration and marks the node as failed (default) |
+| `continue-on-error` | Failed items produce a `null` entry in the output array; iteration continues |
+| `remove-abnormal-output` | Failed items are silently omitted from the output array |
+
+```json
+{
+  "error_handle_mode": "continue-on-error"
+}
+```
+
+## Outputs
+
+| Output key | Type | Description |
+|---|---|---|
+| `output` | array | Collected output values from each iteration, in order |
+
+Reference the collected results in downstream nodes:
+
+```
+{{#iteration_node_id.output#}}
+```
+
+## Full configuration example
+
+```json
+{
+  "type": "iteration",
+  "data": {
+    "iterator_selector": ["knowledge_node_id", "result"],
+    "output_selector": ["summarize_llm_id", "text"],
+    "is_parallel": true,
+    "parallel_nums": 4,
+    "error_handle_mode": "remove-abnormal-output",
+    "flatten_output": true
+  }
+}
+```
+
+<Tip>
+Use `remove-abnormal-output` when occasional failures are acceptable and you want the workflow to produce partial results rather than stopping entirely.
+</Tip>

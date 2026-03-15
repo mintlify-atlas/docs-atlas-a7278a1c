@@ -1,0 +1,119 @@
+---
+title: 'Agent node'
+description: 'Embed an autonomous agent in a Dify workflow that iteratively calls tools to complete a task.'
+---
+
+The **Agent node** runs an agent strategy that can invoke tools iteratively until it produces a final answer. Unlike a plain LLM node, the agent decides at runtime which tools to call and in what order.
+
+## How it works
+
+1. The node resolves the configured agent strategy plugin.
+2. It builds the strategy parameters by resolving workflow variable references.
+3. The strategy invokes the underlying model, which selects and calls tools in a loop.
+4. When the model signals it is done (no more tool calls needed), the agent produces a final response.
+5. The node emits the final answer and the full thought process to the variable pool.
+
+## Configuration
+
+### Agent strategy
+
+An agent strategy is provided by a plugin. The strategy determines the prompting technique used to guide tool selection.
+
+```json
+{
+  "agent_strategy_provider_name": "langgenius/agent",
+  "agent_strategy_name": "function_calling",
+  "agent_strategy_label": "Function Calling"
+}
+```
+
+Two built-in strategies are commonly available:
+
+| Strategy | Description |
+|---|---|
+| `function_calling` | Uses the model's native tool/function-calling API. More reliable on capable models. |
+| `react` | Uses the ReAct (Reason + Act) prompting pattern. Works on models without native function calling. |
+
+### Agent parameters
+
+The strategy defines the parameters it accepts. Common parameters include:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `instruction` | string / variable | The task or goal for the agent |
+| `tools` | array | Tool selectors listing which tools the agent may use |
+| `model` | object | LLM provider, name, and completion parameters |
+| `max_iterations` | number | Maximum number of tool-call rounds before the agent stops |
+
+Each parameter value is supplied as a typed input:
+
+```json
+{
+  "agent_parameters": {
+    "instruction": {
+      "type": "variable",
+      "value": ["sys", "query"]
+    },
+    "max_iterations": {
+      "type": "constant",
+      "value": 5
+    },
+    "tools": {
+      "type": "constant",
+      "value": [
+        { "provider_type": "builtin", "provider_id": "google", "tool_name": "search" }
+      ]
+    }
+  }
+}
+```
+
+Parameter input types:
+
+| Type | Behavior |
+|---|---|
+| `variable` | Resolves a workflow variable selector path directly |
+| `constant` | Uses a literal value as-is |
+| `mixed` | A template string that may contain `{{#node.key#}}` variable references |
+
+### Memory
+
+Optionally configure memory to include recent conversation history in the agent's context (chatflow apps only):
+
+```json
+{
+  "memory": {
+    "window": {
+      "enabled": true,
+      "size": 10
+    }
+  }
+}
+```
+
+## Outputs
+
+| Output key | Type | Description |
+|---|---|---|
+| `output` | string | The agent's final text response |
+| `thought` | string | The full chain-of-thought including tool calls and observations |
+
+Reference the agent's answer in downstream nodes:
+
+```
+{{#agent_node_id.output#}}
+```
+
+## Error handling
+
+The node fails if:
+
+- The agent strategy plugin cannot be resolved.
+- The strategy invocation throws an error (e.g., model API failure).
+- Message transformation of the agent's stream fails (e.g., plugin daemon error).
+
+In all cases the node emits a `FAILED` status with the error message. Enable **Continue on error** if you want the workflow to proceed with empty agent outputs on failure.
+
+<Note>
+The maximum number of agent iterations is controlled by the `max_iterations` parameter within the strategy. There is no global cap set by the workflow engine—configure this parameter explicitly to prevent runaway loops.
+</Note>

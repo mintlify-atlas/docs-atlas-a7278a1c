@@ -1,0 +1,127 @@
+---
+title: Retrieve from Dataset
+description: Run a similarity search (hit testing) against a dataset to find the most relevant document segments.
+---
+
+<Note>
+This endpoint uses the **Dataset API Key**, not the App API Key.
+</Note>
+
+## Endpoint
+
+```
+POST /datasets/{dataset_id}/retrieve
+```
+
+## Path Parameters
+
+<ParamField path="dataset_id" type="string" required>
+  The UUID of the dataset to search.
+</ParamField>
+
+## Request
+
+<ParamField body="query" type="string" required>
+  The search query. Maximum 250 characters.
+</ParamField>
+
+<ParamField body="retrieval_model" type="object">
+  Retrieval configuration. If omitted, the dataset's default retrieval settings are used.
+
+  <Expandable title="retrieval_model object">
+    <ParamField body="search_method" type="string">
+      Search method: `semantic_search`, `full_text_search`, or `hybrid_search`.
+    </ParamField>
+    <ParamField body="reranking_enable" type="boolean">
+      Whether to use a reranking model to improve result relevance.
+    </ParamField>
+    <ParamField body="reranking_model" type="object">
+      Reranking model configuration. Contains `reranking_provider_name` and `reranking_model_name`.
+    </ParamField>
+    <ParamField body="top_k" type="integer">
+      Number of results to return.
+    </ParamField>
+    <ParamField body="score_threshold_enabled" type="boolean">
+      Whether to apply a minimum similarity score threshold.
+    </ParamField>
+    <ParamField body="score_threshold" type="number">
+      Minimum similarity score (0–1). Only used when `score_threshold_enabled` is `true`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="external_retrieval_model" type="object">
+  External retrieval model configuration. Only used when the dataset uses an external knowledge provider.
+</ParamField>
+
+## Response
+
+<ResponseField name="query" type="object">
+  The processed query object.
+
+  <Expandable title="query object">
+    <ResponseField name="content" type="string">The query text.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="records" type="array">
+  List of matching document segments, ranked by relevance.
+
+  <Expandable title="Record object">
+    <ResponseField name="segment" type="object">
+      The matched document segment.
+      <Expandable title="segment object">
+        <ResponseField name="id" type="string">Segment ID.</ResponseField>
+        <ResponseField name="document_id" type="string">Parent document ID.</ResponseField>
+        <ResponseField name="content" type="string">Segment text content.</ResponseField>
+        <ResponseField name="position" type="integer">Segment position within the document.</ResponseField>
+        <ResponseField name="word_count" type="integer">Word count of the segment.</ResponseField>
+        <ResponseField name="tokens" type="integer">Token count of the segment.</ResponseField>
+        <ResponseField name="hit_count" type="integer">Number of times this segment was retrieved.</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="score" type="number">Similarity score (0–1).</ResponseField>
+    <ResponseField name="tsne_position" type="object">Position data for visualization.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/datasets/c3d4e5f6-1234-5678-abcd-ef0123456789/retrieve \
+  -H 'Authorization: Bearer {dataset_api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "What is the return policy?",
+    "retrieval_model": {
+      "search_method": "semantic_search",
+      "reranking_enable": false,
+      "top_k": 5,
+      "score_threshold_enabled": true,
+      "score_threshold": 0.5
+    }
+  }'
+```
+
+```json Response
+{
+  "query": {
+    "content": "What is the return policy?"
+  },
+  "records": [
+    {
+      "segment": {
+        "id": "seg-abc123",
+        "document_id": "a1b2c3d4-0000-1111-2222-333344445555",
+        "content": "Our return policy allows returns within 30 days of purchase with a valid receipt.",
+        "position": 1,
+        "word_count": 15,
+        "tokens": 18,
+        "hit_count": 5
+      },
+      "score": 0.92,
+      "tsne_position": null
+    }
+  ]
+}
+```

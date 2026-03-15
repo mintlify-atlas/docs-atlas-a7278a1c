@@ -1,0 +1,93 @@
+---
+title: 'Knowledge overview'
+description: 'Learn how Dify knowledge bases work, what they contain, and how to connect them to your applications for retrieval-augmented generation.'
+keywords: ['knowledge base', 'dataset', 'RAG', 'retrieval', 'vector store']
+---
+
+A knowledge base (also called a dataset) is a collection of indexed documents that your applications can query at runtime. When a user sends a message or a workflow node executes, Dify retrieves the most relevant chunks from these documents and passes them to the language model as context. This technique — retrieval-augmented generation (RAG) — keeps your application grounded in your own data without fine-tuning.
+
+## Key concepts
+
+<AccordionGroup>
+  <Accordion title="Dataset">
+    A dataset is the top-level container. It holds a collection of documents, an indexing technique setting, an embedding model binding, and retrieval configuration. You create one dataset per topic area or data source — for example, one for your product documentation and another for your support ticket history.
+  </Accordion>
+  <Accordion title="Document">
+    A document is a single file or web page imported into a dataset. Dify tracks each document through parsing, cleaning, splitting, and indexing stages. Documents can come from local file uploads, Notion pages, or web crawl jobs.
+  </Accordion>
+  <Accordion title="Segment (chunk)">
+    Each document is split into segments — discrete text chunks that are individually embedded and stored in the vector index. Retrieval operates at the segment level: Dify finds the segments whose vectors are closest to the query vector and returns their content.
+  </Accordion>
+</AccordionGroup>
+
+## Use cases
+
+<Columns cols={3}>
+  <Card title="FAQ bots" icon="circle-question">
+    Import your FAQ document or support articles. The chatbot retrieves the exact answer section instead of hallucinating a response.
+  </Card>
+  <Card title="Document search" icon="magnifying-glass">
+    Let employees search internal policies, contracts, or technical manuals using natural language.
+  </Card>
+  <Card title="Policy assistants" icon="file-shield">
+    Ground a compliance or HR assistant in your official policy documents so it always cites current rules.
+  </Card>
+</Columns>
+
+## Indexing techniques
+
+Dify supports two indexing techniques, chosen when you create a dataset:
+
+| Technique | How it works | When to use |
+|-----------|-------------|-------------|
+| **High quality** | Segments are embedded using a text embedding model and stored in a vector database. Supports semantic search, full-text search, and hybrid search. | Most use cases — better relevance. |
+| **Economy** | Segments are indexed in an inverted keyword index (no embedding model required). Only keyword search is available. | Cost-sensitive deployments or when an embedding model is not available. |
+
+## How knowledge connects to applications
+
+### Workflow Knowledge Retrieval node
+
+In a workflow, add a **Knowledge Retrieval** node and select one or more datasets. The node queries those datasets with an input variable (typically the user's question) and outputs the retrieved context as a variable you can pass to an LLM node.
+
+### Chatbot context attachment
+
+In a chatbot application, open the **Context** section of the prompt editor and attach one or more datasets. Dify automatically retrieves relevant segments for each user message and injects them into the system prompt before the model generates a reply.
+
+## Dataset permissions
+
+Each dataset has a `permission` setting that controls which team members can use it in their applications:
+
+| Permission | Enum value | Effect |
+|------------|-----------|--------|
+| Only me | `only_me` | Visible only to the creator. |
+| All team members | `all_team_members` | Visible to every member of the workspace. |
+| Partial members | `partial_members` | Visible to a specified list of team members. |
+
+You can change the permission setting at any time from the dataset's **Settings** page.
+
+## Supported vector stores
+
+Dify supports the following vector databases as backing stores for high-quality datasets. Configure the target store in your deployment environment before creating datasets:
+
+<Columns cols={2}>
+  <Card title="Qdrant" icon="database">Self-hosted or Qdrant Cloud. Recommended for production.</Card>
+  <Card title="Weaviate" icon="database">Self-hosted or Weaviate Cloud.</Card>
+  <Card title="Milvus / Zilliz" icon="database">Milvus open-source or Zilliz managed service.</Card>
+  <Card title="pgvector" icon="database">PostgreSQL extension — useful if you already run Postgres.</Card>
+  <Card title="Chroma" icon="database">Lightweight, easy to self-host for development.</Card>
+  <Card title="OpenSearch" icon="database">AWS-managed or self-hosted OpenSearch.</Card>
+  <Card title="Elasticsearch" icon="database">Self-hosted Elasticsearch with vector search enabled.</Card>
+  <Card title="Redis" icon="database">Redis Stack with the vector search module.</Card>
+  <Card title="Tencent Vector DB" icon="database">Tencent Cloud managed vector database.</Card>
+  <Card title="Oracle" icon="database">Oracle Database 23ai with vector store.</Card>
+  <Card title="Tidb" icon="database">TiDB Serverless with vector search.</Card>
+  <Card title="Baidu VectorDB" icon="database">Baidu Cloud managed vector database.</Card>
+  <Card title="Vikingdb" icon="database">ByteDance VolcEngine VikingDB.</Card>
+  <Card title="Lindorm" icon="database">Alibaba Cloud Lindorm search.</Card>
+  <Card title="AnalyticDB" icon="database">Alibaba Cloud AnalyticDB.</Card>
+  <Card title="Couchbase" icon="database">Couchbase Capella with vector search.</Card>
+</Columns>
+
+<Info>
+The built-in default for local development is Qdrant running as a Docker container alongside the Dify API service.
+</Info>

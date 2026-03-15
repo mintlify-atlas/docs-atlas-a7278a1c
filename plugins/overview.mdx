@@ -1,0 +1,88 @@
+---
+title: Plugins Overview
+description: Learn how the Dify plugin system works, what types of plugins exist, and how the plugin daemon manages sandboxed execution.
+---
+
+Dify's plugin system extends the platform with additional tools, model providers, and workflow capabilities. Plugins are self-contained packages that are installed into a workspace and executed by the **Plugin Daemon** service.
+
+## What Plugins Are
+
+A plugin is a versioned, signed package (`*.difypkg`) that declares one or more extensions. Each plugin specifies:
+
+- Its **category** (Tool, Model, Extension, Agent Strategy, Datasource, or Trigger)
+- The **resource requirements** it needs (memory limit, storage)
+- The **permissions** it requests (which Dify capabilities it may access)
+- One or more **provider declarations** that tell Dify what the plugin exposes
+
+Plugin metadata is defined in `core/plugin/entities/plugin.py` via the `PluginDeclaration` model.
+
+## Plugin Categories
+
+<CardGroup cols={2}>
+  <Card title="Tool Plugins" icon="wrench">
+    Add new tools that agents and workflows can call. A tool plugin declares a `ToolProviderEntity` and one or more tool schemas with JSON Schema parameter definitions.
+  </Card>
+  <Card title="Model Plugins" icon="microchip">
+    Add new model providers or extend existing ones. A model plugin declares a `ProviderEntity` and the model types it supports (LLM, embedding, rerank, TTS, STT, image generation, moderation).
+  </Card>
+  <Card title="Extension Plugins" icon="puzzle-piece">
+    Add custom HTTP endpoints to Dify. Endpoint plugins are ideal for webhooks, custom integrations, and callback handlers.
+  </Card>
+  <Card title="Agent Strategy Plugins" icon="robot">
+    Implement custom agent loop strategies beyond the built-in ReAct and function-calling agents.
+  </Card>
+  <Card title="Datasource Plugins" icon="database">
+    Connect to external data sources for use in knowledge retrieval pipelines.
+  </Card>
+  <Card title="Trigger Plugins" icon="bolt">
+    Define custom triggers that start workflow executions in response to external events.
+  </Card>
+</CardGroup>
+
+## Plugin Daemon (`dify-plugin-daemon`)
+
+The Plugin Daemon is a separate service that manages the full lifecycle of installed plugins:
+
+- **Installation:** Downloads, verifies the checksum, and unpacks plugin packages.
+- **Execution:** Runs plugin code in a sandboxed process with enforced memory limits.
+- **Invocation routing:** The Dify API communicates with the daemon over an internal gRPC/HTTP interface. Tool calls, model invocations, and endpoint requests are all proxied through the daemon.
+- **Version management:** Multiple versions of a plugin can coexist; the workspace pins to a specific version at install time.
+
+In self-hosted deployments, the daemon runs as the `plugin_daemon` Docker container. It requires network access to the `api` container and to whatever external services the installed plugins need.
+
+## Plugin Marketplace
+
+The Dify Marketplace is the official catalogue of community and vendor-published plugins. From the marketplace you can:
+
+- Browse plugins by category, tags, and author.
+- View the plugin's permission declarations before installing.
+- Install with a single click directly into your workspace.
+
+Dify Cloud users access the marketplace from **Workspace → Plugins → Marketplace**. Self-hosted users can configure their installation to point at the marketplace or at a private registry.
+
+<Info>
+Only workspace owners and administrators can install, enable/disable, or uninstall plugins. Members with the "Editor" role can use installed plugins inside apps and workflows.
+</Info>
+
+## Plugin Security
+
+All plugins run inside a **sandboxed execution environment** managed by the Plugin Daemon:
+
+- **Memory isolation:** Each plugin process is subject to the memory limit declared in its `PluginResourceRequirements`.
+- **Permission model:** Plugins must declare every Dify capability they need. Requests for undeclared permissions are rejected at runtime. Permissions include: `tool`, `model` (with per-type flags for llm, embedding, rerank, tts, speech2text, moderation), `node`, `endpoint`, and `storage`.
+- **Checksum verification:** Every plugin package carries a checksum. The daemon verifies it before execution to detect tampering.
+- **Verified badge:** Plugins reviewed by the Dify team carry a **Verified** flag in the `PluginDeclaration`. Prefer verified plugins for production use.
+
+<Warning>
+Plugins can make outbound network requests if their code does so. Review the plugin's source or trust the author before installing plugins in environments with access to sensitive internal services.
+</Warning>
+
+## Installation Sources
+
+Dify supports installing plugins from three sources:
+
+| Source | Description |
+|--------|-------------|
+| **Marketplace** | Official Dify marketplace — one-click install |
+| **GitHub** | Install from a public GitHub repository by providing the repo URL and release tag |
+| **Local package** | Upload a `.difypkg` file directly — for private or in-development plugins |

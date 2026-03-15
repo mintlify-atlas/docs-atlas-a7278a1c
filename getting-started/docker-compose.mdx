@@ -1,0 +1,201 @@
+---
+title: 'Docker Compose deployment'
+description: 'Deploy Dify on a single server using Docker Compose in under ten minutes.'
+---
+
+This is the recommended path for getting a self-hosted Dify instance running quickly. All services are defined in a single `docker-compose.yaml` file and configured through a `.env` file.
+
+## Prerequisites
+
+- A Linux, macOS, or Windows (WSL2) machine meeting the [minimum requirements](/getting-started/self-hosting#minimum-system-requirements): **CPU ≥ 2 cores, RAM ≥ 4 GiB**.
+- [Docker Engine](https://docs.docker.com/get-docker/) 20.10 or later.
+- [Docker Compose](https://docs.docker.com/compose/install/) v2.0 or later (ships with Docker Desktop; verify with `docker compose version`).
+- `git` installed.
+
+<Note>
+  Docker Desktop on macOS and Windows includes Docker Compose v2. On Linux, install the Compose plugin: `sudo apt-get install docker-compose-plugin` (Debian/Ubuntu) or equivalent.
+</Note>
+
+## Step-by-step installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/langgenius/dify.git
+    cd dify/docker
+    ```
+  </Step>
+
+  <Step title="Copy and edit the environment file">
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` in a text editor. At minimum, change `SECRET_KEY` to a unique, random value:
+
+    ```bash
+    # Generate a strong key
+    openssl rand -base64 42
+    ```
+
+    Paste the output as the value of `SECRET_KEY` in `.env`. This key is used to sign session cookies and encrypt sensitive data in the database — **do not reuse the default value in production**.
+
+    <Warning>
+      The default `.env.example` contains placeholder passwords for PostgreSQL and Redis (`difyai123456`). Change `DB_PASSWORD` and `REDIS_PASSWORD` (and update `CELERY_BROKER_URL` accordingly) before exposing the deployment to a network.
+    </Warning>
+  </Step>
+
+  <Step title="Start all services">
+    ```bash
+    docker compose up -d
+    ```
+
+    Docker pulls all required images and starts the containers in the background. On a fast connection this typically takes 2–5 minutes on first run. Subsequent starts are much faster because images are cached.
+
+    Monitor startup progress:
+
+    ```bash
+    docker compose logs -f
+    ```
+
+    Wait until you see log output from the `api` service indicating the Gunicorn server is listening, and from `web` indicating Next.js is ready.
+  </Step>
+
+  <Step title="Complete the initial setup wizard">
+    Open [http://localhost/install](http://localhost/install) in your browser.
+
+    The setup wizard prompts you to create the first admin account. Fill in your name, email address, and a password, then click **Set Up**.
+
+    <Info>
+      Alternatively, pre-set the admin password via the `INIT_PASSWORD` environment variable before first launch. If set, the setup wizard skips the password prompt.
+    </Info>
+
+    After setup, you are redirected to the Dify dashboard at `http://localhost`.
+  </Step>
+</Steps>
+
+## Services started
+
+After `docker compose up -d`, the following containers are running:
+
+| Container | Port (host) | Description |
+|-----------|-------------|-------------|
+| `nginx` | **80** (HTTP), **443** (HTTPS) | Reverse proxy — the entry point for all traffic |
+| `api` | 5001 (internal) | Flask API server |
+| `worker` | — | Celery worker for background tasks |
+| `worker_beat` | — | Celery beat for scheduled tasks |
+| `web` | 3000 (internal) | Next.js frontend |
+| `db_postgres` | 5432 (internal) | PostgreSQL 15 database |
+| `redis` | 6379 (internal) | Redis 6 cache and message broker |
+| `weaviate` | 8080 (internal) | Vector store (default) |
+| `sandbox` | 8194 (internal) | Code execution sandbox |
+| `ssrf_proxy` | 3128 (internal) | Outbound SSRF protection proxy |
+| `plugin_daemon` | 5002 (internal) | Plugin daemon |
+
+Only the Nginx ports (80/443) are exposed to the host by default. All other services communicate over Docker's internal network.
+
+## Common configuration
+
+### Changing the vector store
+
+The default vector store is Weaviate. To switch to another supported store (e.g., Qdrant, Milvus, pgvector, OpenSearch), set `VECTOR_STORE` in `.env` and restart:
+
+```bash
+# Example: switch to Qdrant
+VECTOR_STORE=qdrant
+```
+
+The `COMPOSE_PROFILES` variable (automatically derived from `VECTOR_STORE`) controls which optional vector store service is started.
+
+### Enabling HTTPS
+
+Set the following variables in `.env`:
+
+```bash
+NGINX_HTTPS_ENABLED=true
+NGINX_SSL_PORT=443
+NGINX_SSL_CERT_FILENAME=dify.crt
+NGINX_SSL_CERT_KEY_FILENAME=dify.key
+```
+
+Place your certificate and key files in `./nginx/ssl/` and run `docker compose up -d nginx`.
+
+### Persisted volumes
+
+All state is stored in named volumes under `./volumes/`:
+
+```
+docker/
+  volumes/
+    app/storage/   # User-uploaded files and plugin packages
+    db/data/       # PostgreSQL data directory
+    redis/data/    # Redis persistence
+```
+
+Back up these directories to preserve your data across re-deployments.
+
+## Upgrading
+
+```bash
+cd dify/docker
+git pull origin main
+docker compose pull
+docker compose up -d
+```
+
+Database migrations run automatically on startup when `MIGRATION_ENABLED=true` (the default).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="localhost/install redirects in a loop or shows a blank page">
+    The `web` or `api` container may still be initialising. Check logs:
+
+    ```bash
+    docker compose logs api
+    docker compose logs web
+    ```
+
+    Wait for `api` to log `worker ready` and for `web` to log `ready on http://0.0.0.0:3000`.
+  </Accordion>
+
+  <Accordion title="Database migration fails on startup">
+    The `api` container runs Alembic migrations before serving requests. A migration failure usually indicates a connection issue with PostgreSQL. Check:
+
+    ```bash
+    docker compose logs api | grep -i migration
+    docker compose logs db_postgres
+    ```
+
+    Ensure `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, and `DB_DATABASE` in `.env` match the values in the `db_postgres` service environment.
+  </Accordion>
+
+  <Accordion title="api container exits immediately">
+    Confirm `SECRET_KEY` is set to a non-empty value in `.env`. A missing or empty `SECRET_KEY` causes the application to refuse to start.
+  </Accordion>
+
+  <Accordion title="File uploads fail or plugins cannot access files">
+    Set `FILES_URL` and `INTERNAL_FILES_URL` in `.env`:
+
+    ```bash
+    FILES_URL=http://<your-server-ip>:5001
+    INTERNAL_FILES_URL=http://api:5001
+    ```
+
+    `FILES_URL` must be reachable from the client's browser. `INTERNAL_FILES_URL` is the address the plugin daemon uses to reach the API service within the Docker network.
+  </Accordion>
+
+  <Accordion title="Port 80 is already in use">
+    Change the exposed Nginx port in `.env`:
+
+    ```bash
+    EXPOSE_NGINX_PORT=8080
+    ```
+
+    Then restart with `docker compose up -d`.
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  For persistent issues, check the [official FAQ](https://docs.dify.ai/getting-started/install-self-hosted/faqs) or open a discussion on the [GitHub repository](https://github.com/langgenius/dify/discussions).
+</Tip>

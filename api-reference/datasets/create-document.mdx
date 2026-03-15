@@ -1,0 +1,123 @@
+---
+title: Create Document
+description: Add a new document to a dataset by providing text content.
+---
+
+<Note>
+This endpoint uses the **Dataset API Key**, not the App API Key.
+</Note>
+
+## Endpoint
+
+```
+POST /datasets/{dataset_id}/document/create-by-text
+```
+
+## Path Parameters
+
+<ParamField path="dataset_id" type="string" required>
+  The UUID of the target dataset.
+</ParamField>
+
+## Request
+
+<ParamField body="name" type="string" required>
+  Name of the document.
+</ParamField>
+
+<ParamField body="text" type="string" required>
+  The text content of the document.
+</ParamField>
+
+<ParamField body="indexing_technique" type="string">
+  Indexing technique for this document. One of `high_quality` or `economy`. Required if the dataset does not already have an indexing technique set.
+</ParamField>
+
+<ParamField body="process_rule" type="object">
+  Document processing rules. If omitted, the dataset's existing process rule is used.
+
+  <Expandable title="process_rule object">
+    <ParamField body="mode" type="string">
+      Processing mode: `automatic` or `custom`.
+    </ParamField>
+    <ParamField body="rules" type="object">
+      Custom rules (only applicable when `mode` is `custom`).
+      Contains `pre_processing_rules` (array) and `segmentation` (object with `separator`, `max_tokens`, and `chunk_overlap`).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="doc_form" type="string" default="text_model">
+  Document form type. Determines how the document is stored and retrieved.
+</ParamField>
+
+<ParamField body="doc_language" type="string" default="English">
+  Language of the document content. Used for text processing.
+</ParamField>
+
+<ParamField body="embedding_model" type="string">
+  Embedding model override for this document.
+</ParamField>
+
+<ParamField body="embedding_model_provider" type="string">
+  Embedding model provider override for this document.
+</ParamField>
+
+<ParamField body="retrieval_model" type="object">
+  Retrieval configuration override for this document.
+</ParamField>
+
+<ParamField body="original_document_id" type="string">
+  ID of an existing document to replace. Use this to update the content of a document.
+</ParamField>
+
+## Response
+
+<ResponseField name="document" type="object">
+  The created document object.
+
+  <Expandable title="Document object">
+    <ResponseField name="id" type="string">Document ID.</ResponseField>
+    <ResponseField name="position" type="integer">Document position in the dataset.</ResponseField>
+    <ResponseField name="data_source_type" type="string">Source type, e.g. `upload_file`.</ResponseField>
+    <ResponseField name="name" type="string">Document name.</ResponseField>
+    <ResponseField name="indexing_status" type="string">Current indexing status: `waiting`, `parsing`, `cleaning`, `splitting`, `indexing`, `completed`, `error`, or `paused`.</ResponseField>
+    <ResponseField name="created_at" type="integer">Unix timestamp of creation.</ResponseField>
+    <ResponseField name="tokens" type="integer">Token count.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="batch" type="string">
+  Batch ID. Use this with the indexing status endpoint to monitor progress.
+</ResponseField>
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/datasets/c3d4e5f6-1234-5678-abcd-ef0123456789/document/create-by-text \
+  -H 'Authorization: Bearer {dataset_api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Return Policy",
+    "text": "Our return policy allows returns within 30 days of purchase...",
+    "indexing_technique": "high_quality",
+    "process_rule": {
+      "mode": "automatic"
+    }
+  }'
+```
+
+```json Response
+{
+  "document": {
+    "id": "a1b2c3d4-0000-1111-2222-333344445555",
+    "position": 1,
+    "data_source_type": "upload_file",
+    "name": "Return Policy",
+    "indexing_status": "waiting",
+    "created_at": 1705395332,
+    "tokens": 0
+  },
+  "batch": "20230921150427533684"
+}
+```

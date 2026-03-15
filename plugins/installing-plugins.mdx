@@ -1,0 +1,155 @@
+---
+title: Installing Plugins
+description: How to install, manage, enable, and uninstall plugins in Dify from the Marketplace, GitHub, or a local package file.
+---
+
+## Accessing the Plugin Section
+
+Navigate to **Workspace → Plugins** using the sidebar. You will see:
+
+- **Installed** — all plugins currently installed in this workspace
+- **Marketplace** — browse and install new plugins
+
+<Info>
+Only workspace owners and administrators can install or modify plugins.
+</Info>
+
+---
+
+## Installing from the Marketplace
+
+<Steps>
+  <Step title="Open the Marketplace">
+    Click **Marketplace** in the Plugins section.
+  </Step>
+  <Step title="Find a plugin">
+    Use the search bar, category filters, or tags to find the plugin you want. Click the plugin card to view its details, including:
+    - Description and screenshots
+    - Permission declarations
+    - Author and version
+    - Verified status
+  </Step>
+  <Step title="Review permissions">
+    Before installing, review the permissions the plugin has declared. These are the Dify capabilities the plugin is allowed to access.
+
+    Common permissions:
+    | Permission | Meaning |
+    |------------|---------|
+    | `tool` | Can use tools from Dify |
+    | `model.llm` | Can call LLMs via Dify |
+    | `model.text_embedding` | Can call embedding models |
+    | `endpoint` | Exposes HTTP endpoints |
+    | `storage` | Reads/writes persistent storage |
+  </Step>
+  <Step title="Install">
+    Click **Install**. The Plugin Daemon downloads and verifies the package. Installation typically takes a few seconds.
+  </Step>
+  <Step title="Configure (if required)">
+    Some plugins require credentials or configuration after installation (e.g. an API key for a third-party service). A configuration prompt appears immediately after installation if needed.
+  </Step>
+</Steps>
+
+---
+
+## Installing from GitHub
+
+Use this method to install a specific version of a plugin from a public GitHub repository.
+
+<Steps>
+  <Step title="Go to Install from GitHub">
+    In the Plugins section, click **Install Plugin** and select **Install from GitHub**.
+  </Step>
+  <Step title="Enter the repository URL">
+    Paste the GitHub repository URL. Example:
+    ```
+    https://github.com/langgenius/dify-official-plugins
+    ```
+  </Step>
+  <Step title="Select version and package">
+    Choose the release version and the specific package file (`.difypkg`) from that release.
+  </Step>
+  <Step title="Install">
+    Click **Install**. Dify fetches the package from GitHub's release assets and hands it to the Plugin Daemon for installation.
+  </Step>
+</Steps>
+
+<Warning>
+GitHub-sourced plugins are not reviewed by the Dify team. Only install from repositories you trust.
+</Warning>
+
+---
+
+## Installing from a Local Package File
+
+For private or in-development plugins, upload the `.difypkg` file directly.
+
+<Steps>
+  <Step title="Go to Install from local package">
+    Click **Install Plugin** and select **Upload local package**.
+  </Step>
+  <Step title="Upload the file">
+    Drag and drop or select your `.difypkg` file. Maximum file size is 50 MB.
+  </Step>
+  <Step title="Review and confirm">
+    Dify displays the plugin metadata parsed from the package: name, version, author, category, and permissions. Verify these before proceeding.
+  </Step>
+  <Step title="Install">
+    Click **Install**. The Plugin Daemon verifies the package checksum and extracts it.
+  </Step>
+</Steps>
+
+<Note>
+Local package installs bypass the Marketplace verification pipeline. The checksum is still validated to ensure the file is intact, but the plugin author is not verified by Dify.
+</Note>
+
+---
+
+## Managing Installed Plugins
+
+### Viewing installed plugins
+
+The **Installed** tab lists every plugin in the workspace with its version, author, category, and current status.
+
+### Enabling and disabling
+
+Toggle the switch next to a plugin to enable or disable it without uninstalling. Disabled plugins:
+- Cannot be invoked by any agent, workflow, or app.
+- Remain installed and retain their configuration.
+- Can be re-enabled at any time.
+
+### Updating a plugin
+
+When a newer version of a Marketplace plugin is available, an **Update** badge appears on the plugin card. Click **Update** to upgrade. The Plugin Daemon installs the new version and the old version is removed.
+
+<Warning>
+Plugin updates may change the tool schema or required credentials. Review the changelog before updating plugins used in production workflows.
+</Warning>
+
+### Uninstalling a plugin
+
+<Steps>
+  <Step title="Open plugin options">
+    Click the three-dot menu on the plugin card and select **Uninstall**.
+  </Step>
+  <Step title="Confirm">
+    Confirm the prompt. The plugin is removed from the workspace and all its stored data is deleted.
+  </Step>
+</Steps>
+
+<Warning>
+Uninstalling a plugin that is referenced by an agent, workflow node, or API tool will break those references. Update the dependent applications before uninstalling.
+</Warning>
+
+---
+
+## Plugin Credentials
+
+Some built-in tool plugins (those delivered via the plugin system) require you to supply credentials before they can be used, for example a third-party service API key.
+
+To configure credentials for a plugin:
+
+1. Go to **Workspace → Plugins → Installed**.
+2. Click **Configure** (or the settings icon) on the plugin that needs credentials.
+3. Fill in the required fields and click **Save**.
+
+Credentials are encrypted at rest and scoped to your workspace. They are never shared with other workspaces or exposed in API responses.

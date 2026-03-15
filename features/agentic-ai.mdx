@@ -1,0 +1,118 @@
+---
+title: 'Agentic AI'
+description: 'Build autonomous AI agents that reason, use tools, and iterate to complete complex tasks. Dify supports ReAct (chain-of-thought) and Function Calling agent strategies with 50+ built-in tools.'
+---
+
+An **agent** in Dify is an LLM-powered loop that autonomously decides which tools to call, calls them, observes the results, and repeats until it has enough information to produce a final answer. Agents are suitable for tasks where the number of required steps is not known in advance.
+
+## Agent strategies
+
+Dify implements two agent strategies. The strategy determines how the agent formats its reasoning and how it invokes tools.
+
+<Tabs>
+  <Tab title="ReAct (chain-of-thought)">
+    The `CotAgentRunner` implements the ReAct pattern. On each iteration the agent produces a **Thought** (reasoning about what to do next), an **Action** (the tool to call and its arguments), and an **Observation** (the tool's response). This cycle repeats until the agent emits a `Final Answer` action.
+
+    ```text
+    Thought: I need to find the current price of AAPL.
+    Action: {"action": "web_search", "action_input": "AAPL stock price today"}
+    Observation: Apple Inc. (AAPL) is trading at $189.42.
+    Thought: I now have the price. I can give the final answer.
+    Final Answer: AAPL is currently trading at $189.42.
+    ```
+
+    ReAct works with any LLM that can follow the structured format, including models that do not support native tool calling. The model stop sequence is set to `Observation` so that the runtime can inject the tool result before the model continues.
+
+    **Best for:** Models without native function calling support; tasks where you want the reasoning steps visible to the end user.
+  </Tab>
+  <Tab title="Function calling">
+    The `FunctionCallAgentRunner` uses the model's native tool-calling API (e.g., OpenAI function calling, Anthropic tool use). The model emits structured `tool_calls` objects rather than free-text reasoning. The runtime extracts the tool call, executes it, appends a `ToolPromptMessage` with the result, and passes the updated message list back to the model.
+
+    Function calling supports streaming: the agent streams partial text responses to the user while tool calls are processed synchronously.
+
+    **Best for:** Models with native function calling support (GPT-4o, Claude 3, Gemini 1.5); lower latency; more reliable tool argument extraction.
+  </Tab>
+</Tabs>
+
+## How the agent loop works
+
+1. The user sends a message.
+2. The agent initializes the scratchpad and loads its configured tools as `PromptMessageTool` objects.
+3. The model is invoked with the current prompt, history, and tool definitions.
+4. The runtime parses the model output:
+   - If the model calls a tool, `ToolEngine.agent_invoke` executes the tool and the result is appended to the scratchpad.
+   - If the model produces a final answer, the loop exits.
+5. Steps 3–4 repeat up to `max_iteration` times (default 10, hard cap 99).
+6. If `max_iteration` is reached and the model has not produced a final answer, the runtime raises `AgentMaxIterationError`.
+
+<Note>Token usage is accumulated across all iterations. Each iteration's usage is tracked in `LLMUsage` objects and summed in `llm_usage["usage"]` before the final result is published.</Note>
+
+## Built-in tools
+
+Dify ships with 50+ built-in tools organized by category.
+
+<AccordionGroup>
+  <Accordion title="Search and web">
+    - **Google Search** — web search via the Google Custom Search API
+    - **Bing Search** — web search via Microsoft Bing
+    - **DuckDuckGo** — privacy-preserving web search
+    - **Wikipedia** — article lookup and summarization
+    - **WolframAlpha** — computational knowledge and math
+    - **Web scraper** — extract text content from any URL
+  </Accordion>
+  <Accordion title="Image generation">
+    - **DALL-E** — generate images from text prompts using OpenAI
+    - **Stable Diffusion** — generate images via a self-hosted or API-based SD instance
+  </Accordion>
+  <Accordion title="Code and data">
+    - **Code interpreter** — execute Python code in a sandboxed environment
+    - **Chart generator** — produce data visualizations from structured data
+  </Accordion>
+  <Accordion title="Productivity and utilities">
+    - **Current time** — return the current date and time
+    - **Calculator** — evaluate mathematical expressions
+    - **Weather** — current conditions and forecasts
+    - **Email** — send emails via SMTP
+    - **Slack** — post messages to Slack channels
+    - **Notion** — read and write Notion pages and databases
+    - **GitHub** — search repositories, read files, and manage issues
+  </Accordion>
+  <Accordion title="Media and files">
+    - **YouTube** — search videos and retrieve transcripts
+    - **Spotify** — search and retrieve track metadata
+    - **PDF reader** — extract and summarize PDF content
+  </Accordion>
+</AccordionGroup>
+
+## Configuring an agent app
+
+<Steps>
+  <Step title="Create an agent app">
+    From the dashboard, select **Create app → Agent**. Choose a base LLM and enter a system prompt describing the agent's role and behavior.
+  </Step>
+  <Step title="Select tools">
+    In the **Tools** panel, enable the tools you want the agent to have access to. For built-in tools that require API keys (e.g., Google Search, WolframAlpha), click the tool to enter credentials. Each enabled tool is passed to the model as a `PromptMessageTool` definition.
+  </Step>
+  <Step title="Set iteration limits">
+    Under **Agent settings**, set **Max iterations**. This maps to `AgentEntity.max_iteration` (default 10). Higher values allow the agent to tackle more complex multi-step tasks but increase latency and token cost.
+  </Step>
+  <Step title="Configure memory">
+    Enable **Memory** to give the agent access to the conversation history. The runtime uses `AgentHistoryPromptTransform` to trim history to fit within the model's context window.
+  </Step>
+  <Step title="Test the agent">
+    Use the built-in debugger to send test messages. The debug panel shows each iteration's thought, action, and observation so you can verify the agent is selecting the correct tools and interpreting results correctly.
+  </Step>
+</Steps>
+
+## Agent vs. workflow
+
+| Situation | Recommended approach |
+|---|---|
+| The number of steps is fixed and known | Workflow |
+| The task requires flexible reasoning and tool selection | Agent |
+| You need deterministic, auditable execution | Workflow |
+| The user's request is open-ended or exploratory | Agent |
+| You need to iterate on a large dataset in parallel | Workflow with iteration node |
+| You need to combine structured logic with autonomous sub-tasks | Workflow with an Agent node |
+
+<Tip>You can embed an Agent node inside a workflow to get the best of both approaches. The workflow provides deterministic orchestration while the agent node handles the parts of the task that require flexible reasoning.</Tip>

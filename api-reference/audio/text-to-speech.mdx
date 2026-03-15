@@ -1,0 +1,74 @@
+---
+title: Text to Speech
+description: Convert text to audio using the app's configured text-to-speech model.
+---
+
+## Endpoint
+
+```
+POST /text-to-audio
+```
+
+## Request
+
+<ParamField body="text" type="string">
+  The text to convert to speech. Either `text` or `message_id` must be provided.
+</ParamField>
+
+<ParamField body="message_id" type="string">
+  The ID of a message whose answer text should be converted to speech. Takes precedence over `text` if both are provided.
+</ParamField>
+
+<ParamField body="voice" type="string">
+  Voice identifier to use for synthesis. Available voices depend on the configured TTS provider.
+</ParamField>
+
+<ParamField body="streaming" type="boolean">
+  When `true`, streams the audio data in chunks. When `false` or omitted, returns the complete audio in a single response.
+</ParamField>
+
+<ParamField body="user" type="string">
+  The end user identifier.
+</ParamField>
+
+## Response
+
+Returns audio data with `Content-Type: audio/mpeg` (or the appropriate audio MIME type for the provider).
+
+When `streaming` is `true`, the response is a chunked transfer stream of audio bytes.
+
+## Errors
+
+| Status | Code | Description |
+|---|---|---|
+| 400 | `app_unavailable` | The application configuration is broken. |
+| 400 | `provider_not_initialize` | No TTS model provider credentials configured. |
+| 400 | `provider_quota_exceeded` | TTS provider quota exhausted. |
+| 400 | `model_currently_not_support` | The selected model does not support TTS. |
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/text-to-audio \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "Hello, welcome to Dify!",
+    "user": "user-abc123",
+    "streaming": false
+  }' \
+  --output output.mp3
+```
+
+Using a message ID:
+
+```bash
+curl -X POST https://api.dify.ai/v1/text-to-audio \
+  -H 'Authorization: Bearer {api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "message_id": "9da23599-e713-473b-982c-4328d4f5c78a",
+    "user": "user-abc123"
+  }' \
+  --output response.mp3
+```

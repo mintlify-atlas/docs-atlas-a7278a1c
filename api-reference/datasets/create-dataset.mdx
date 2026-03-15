@@ -1,0 +1,119 @@
+---
+title: Create Dataset
+description: Create a new knowledge base (dataset) in your Dify workspace.
+---
+
+<Note>
+This endpoint uses the **Dataset API Key**, not the App API Key.
+</Note>
+
+## Endpoint
+
+```
+POST /datasets
+```
+
+## Request
+
+<ParamField body="name" type="string" required>
+  Name of the dataset. Between 1 and 40 characters.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description. Maximum 400 characters.
+</ParamField>
+
+<ParamField body="indexing_technique" type="string">
+  How documents in this dataset are indexed:
+  - `high_quality` — uses an embedding model for semantic search (requires a configured embedding model).
+  - `economy` — uses keyword-based search.
+</ParamField>
+
+<ParamField body="permission" type="string" default="only_me">
+  Access permission. One of:
+  - `only_me` — only the creator can access.
+  - `all_team_members` — all members of the workspace can access.
+  - `partial_members` — specific team members can access.
+</ParamField>
+
+<ParamField body="provider" type="string" default="vendor">
+  Dataset provider type. Use `vendor` for standard Dify-managed datasets or `external` for external knowledge bases.
+</ParamField>
+
+<ParamField body="embedding_model" type="string">
+  Name of the embedding model to use (e.g., `text-embedding-3-small`). Required when `indexing_technique` is `high_quality`.
+</ParamField>
+
+<ParamField body="embedding_model_provider" type="string">
+  Provider of the embedding model (e.g., `openai`). Required when `embedding_model` is specified.
+</ParamField>
+
+<ParamField body="retrieval_model" type="object">
+  Retrieval configuration. Includes `search_method`, `reranking_enable`, `reranking_model`, `top_k`, `score_threshold_enabled`, and `score_threshold`.
+</ParamField>
+
+<ParamField body="external_knowledge_api_id" type="string">
+  ID of the external knowledge API. Only used when `provider` is `external`.
+</ParamField>
+
+<ParamField body="external_knowledge_id" type="string">
+  ID within the external knowledge system. Only used when `provider` is `external`.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique dataset ID.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Dataset name.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Dataset description.
+</ResponseField>
+
+<ResponseField name="provider" type="string">
+  Dataset provider.
+</ResponseField>
+
+<ResponseField name="permission" type="string">
+  Access permission setting.
+</ResponseField>
+
+<ResponseField name="indexing_technique" type="string">
+  Indexing technique: `high_quality` or `economy`.
+</ResponseField>
+
+<ResponseField name="created_at" type="integer">
+  Unix timestamp of creation.
+</ResponseField>
+
+## Example
+
+```bash
+curl -X POST https://api.dify.ai/v1/datasets \
+  -H 'Authorization: Bearer {dataset_api_key}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Product Documentation",
+    "description": "Internal product docs and FAQs",
+    "indexing_technique": "high_quality",
+    "permission": "all_team_members",
+    "embedding_model": "text-embedding-3-small",
+    "embedding_model_provider": "openai"
+  }'
+```
+
+```json Response
+{
+  "id": "c3d4e5f6-1234-5678-abcd-ef0123456789",
+  "name": "Product Documentation",
+  "description": "Internal product docs and FAQs",
+  "provider": "vendor",
+  "permission": "all_team_members",
+  "indexing_technique": "high_quality",
+  "created_at": 1705395332
+}
+```

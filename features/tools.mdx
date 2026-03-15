@@ -1,0 +1,189 @@
+---
+title: 'Tools and integrations'
+description: 'Extend agents and workflows with 50+ built-in tools, custom API tools imported from OpenAPI/Swagger specs, workflow-as-tool publishing, and MCP (Model Context Protocol) server connections.'
+---
+
+Dify tools give LLMs the ability to act: search the web, generate images, run code, call external APIs, and more. Tools are available in agent apps, agent workflow nodes, and can be registered as tool providers for other Dify applications.
+
+## Tool provider types
+
+The `ToolProviderType` enum in `core/tools/entities/tool_entities.py` defines the available provider types:
+
+| Type | Description |
+|---|---|
+| `builtin` | First-party tools shipped with Dify |
+| `api` | Custom tools defined by an OpenAPI/Swagger specification |
+| `workflow` | A published Dify workflow exposed as a reusable tool |
+| `mcp` | Tools served by an MCP (Model Context Protocol) server |
+| `plugin` | Tools installed via the Dify plugin marketplace |
+| `dataset-retrieval` | Knowledge base retrieval exposed as a tool |
+
+## Built-in tools
+
+Dify ships with tools organized by the following label categories defined in `ToolLabelEnum`:
+
+<Tabs>
+  <Tab title="Search">
+    | Tool | Description |
+    |---|---|
+    | Google Search | Web search using the Google Custom Search API |
+    | Bing Search | Web search using the Microsoft Bing Search API |
+    | DuckDuckGo | Privacy-preserving web search |
+    | Wikipedia | Article lookup and excerpt retrieval |
+    | WolframAlpha | Computational intelligence and math queries |
+    | Web scraper | Fetch and extract text from any public URL |
+    | Jina Reader | High-quality web content extraction optimized for LLM consumption |
+  </Tab>
+  <Tab title="Image and media">
+    | Tool | Description |
+    |---|---|
+    | DALL-E | Text-to-image generation via OpenAI |
+    | Stable Diffusion | Text-to-image generation via a Stable Diffusion API endpoint |
+    | YouTube | Search YouTube videos and retrieve transcripts |
+    | Spotify | Search tracks and retrieve metadata |
+  </Tab>
+  <Tab title="Code and data">
+    | Tool | Description |
+    |---|---|
+    | Code interpreter | Execute Python code in an isolated sandbox |
+    | Chart generator | Generate charts and visualizations from data |
+    | Calculator | Evaluate mathematical expressions |
+  </Tab>
+  <Tab title="Productivity">
+    | Tool | Description |
+    |---|---|
+    | Current time | Return the current date and time |
+    | Weather | Fetch current conditions and forecasts |
+    | Google Calendar | Create and read calendar events |
+    | Notion | Read and write Notion pages and databases |
+    | Slack | Post messages to Slack channels |
+    | GitHub | Search repositories, read files, create issues |
+    | Email (SMTP) | Send emails via an SMTP server |
+  </Tab>
+  <Tab title="Finance and data">
+    | Tool | Description |
+    |---|---|
+    | Alpha Vantage | Stock market data and financial indicators |
+    | Yahoo Finance | Financial news and stock data |
+  </Tab>
+</Tabs>
+
+### Configuring built-in tools
+
+Most built-in tools require an API key or other credential. To configure a tool:
+
+1. In your agent app or workflow, click the tool to open its settings.
+2. Enter the required credentials (API key, endpoint URL, etc.).
+3. Credentials are stored encrypted per workspace and reused across all apps that enable the same tool.
+
+## Custom API tools
+
+You can import any REST API as a tool by providing an OpenAPI 3.0 or Swagger 2.0 specification. Dify parses the spec and creates a tool for each operation.
+
+<Steps>
+  <Step title="Navigate to Tools">
+    From the sidebar, click **Tools → Custom tools → Create tool**.
+  </Step>
+  <Step title="Import the spec">
+    Paste your OpenAPI JSON/YAML directly, upload the spec file, or provide a URL to a hosted spec. Dify supports `openapi`, `swagger`, and `openai_plugin` schema types (defined in `ApiProviderSchemaType`).
+  </Step>
+  <Step title="Configure authentication">
+    Choose the auth method required by the API: None, API Key (header or query param), or Bearer token.
+  </Step>
+  <Step title="Review operations">
+    Dify lists each API operation as a separate tool. Review the generated parameter descriptions. You can edit names and descriptions to improve the LLM's ability to select and invoke the correct operation.
+  </Step>
+  <Step title="Save and enable">
+    Click **Save**. The custom tool is now available for selection in any agent app or workflow tool node in your workspace.
+  </Step>
+</Steps>
+
+<CodeGroup>
+
+```yaml openapi-example.yaml
+openapi: "3.0.0"
+info:
+  title: Weather API
+  version: "1.0"
+paths:
+  /current:
+    get:
+      operationId: get_current_weather
+      summary: Get current weather for a city
+      parameters:
+        - name: city
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The city name to get weather for
+      responses:
+        '200':
+          description: Weather data
+```
+
+</CodeGroup>
+
+## Workflow as tool
+
+Any published Dify workflow can be exposed as a reusable tool that agents and other workflows can call. The `WorkflowTool` class in `core/tools/workflow_as_tool/tool.py` handles invocation.
+
+**How it works:**
+1. The `WorkflowTool._invoke` method loads the target workflow app by `workflow_app_id` and runs it via `WorkflowAppGenerator.generate`.
+2. The workflow runs non-streaming (`streaming=False`) and returns a `dict` result.
+3. Output variables from the workflow are extracted and yielded as `ToolInvokeMessage` objects.
+4. File outputs are extracted separately and yielded as file messages.
+
+**Publishing a workflow as a tool:**
+
+<Steps>
+  <Step title="Open the workflow">
+    Navigate to the workflow app you want to expose as a tool.
+  </Step>
+  <Step title="Configure tool publishing">
+    In workflow settings, click **Publish as tool**. Define the tool's name, description, and map workflow input variables to tool parameters.
+  </Step>
+  <Step title="Use in an agent or workflow">
+    The published workflow appears as a tool in the tool selector under **Workflow tools**. Enable it in any agent app or workflow tool node.
+  </Step>
+</Steps>
+
+<Note>Workflow tool calls do not support HumanInput pause/resume. If the target workflow contains a HumanInput node, the call will fail. The `pause_state_config` is explicitly set to `None` during workflow tool invocation.</Note>
+
+## MCP (Model Context Protocol) tools
+
+Dify supports connecting to external MCP servers via the `MCPTool` class in `core/tools/mcp_tool/tool.py`. MCP is an open protocol that allows LLM applications to communicate with tool servers over a standardized interface.
+
+**How MCP tools work in Dify:**
+- The `MCPTool._invoke` method calls `invoke_remote_mcp_tool`, which uses `MCPClientWithAuthRetry` to make an SSE-based connection to the MCP server.
+- The server URL and headers are loaded from the database (credentials are stored encrypted).
+- OAuth token-based authentication is supported: if a saved token exists, it is injected as an `Authorization` header.
+- MCP tool results support text, image, audio, embedded resource, and structured JSON output types.
+- Token usage metadata from the MCP response's `_meta` field is extracted and reported.
+
+**Connecting an MCP server:**
+
+<Steps>
+  <Step title="Open MCP settings">
+    Navigate to **Settings → Tools → MCP servers** and click **Add server**.
+  </Step>
+  <Step title="Enter server details">
+    Provide the MCP server's SSE endpoint URL (e.g., `https://your-mcp-server.example.com/sse`) and any required authentication headers.
+  </Step>
+  <Step title="Fetch available tools">
+    Dify connects to the server and lists the tools it exposes. Review the tool names and descriptions.
+  </Step>
+  <Step title="Enable tools">
+    Select the tools you want to make available in your workspace. Enabled tools appear in the tool selector alongside built-in and custom API tools.
+  </Step>
+</Steps>
+
+<Warning>MCP server connections are made at tool invocation time, not at configuration time. If the MCP server is unavailable when an agent calls the tool, the invocation raises a `ToolInvokeError` with a connection error message. Implement retry or fallback logic in your workflow if server availability is a concern.</Warning>
+
+## Tool labels and discovery
+
+The `ToolLabelEnum` categories help organize tools in the UI picker:
+
+`search` · `image` · `videos` · `weather` · `finance` · `design` · `travel` · `social` · `news` · `medical` · `productivity` · `education` · `business` · `entertainment` · `utilities` · `rag` · `other`
+
+When configuring an agent, you can filter the tool picker by label to quickly find relevant tools. The `ToolLabelManager` in `core/tools/tool_label_manager.py` handles label assignment and lookup.

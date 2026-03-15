@@ -1,0 +1,137 @@
+---
+title: 'Prompt IDE'
+description: 'Craft, iterate, and test prompts for chatbot and text generator apps. Tune model parameters, use variable templates, compare models side-by-side, and configure speech and vision inputs.'
+---
+
+The Prompt IDE is the editing environment for **Chatbot** and **Text generator** app types. It provides a structured prompt editor alongside model parameter controls, a live debugger, and feature toggles for speech and vision.
+
+<Note>The Prompt IDE is distinct from the workflow canvas. Use the Prompt IDE for single-LLM apps (chatbots, text generators). Use the workflow builder for multi-step pipelines.</Note>
+
+## Prompt structure
+
+A Dify prompt consists of three segments:
+
+<Tabs>
+  <Tab title="System prompt">
+    The system prompt sets the LLM's role, persona, and behavioral constraints. It is sent as the `system` role message (or prepended to the first `user` message for models that do not support the system role).
+
+    Write instructions in plain language. You can reference workflow inputs and knowledge base context using the `{{variable_name}}` syntax.
+
+    ```text
+    You are a helpful customer support assistant for {{company_name}}.
+    Always respond in {{response_language}}.
+    Use the following context to answer the user's question:
+    {{knowledge_context}}
+    ```
+  </Tab>
+  <Tab title="User message template">
+    For text generator apps, you define the full user message as a template. Variables in the template are filled in at runtime from the app's input form.
+
+    ```text
+    Summarize the following document in {{summary_length}} sentences:
+
+    {{document}}
+    ```
+
+    In chatbot mode the user sends their own messages; the user message template is not applicable.
+  </Tab>
+  <Tab title="Assistant prefix">
+    The assistant prefix pre-fills the beginning of the model's response. This is a completion-mode feature that biases the model toward a specific output format or starting phrase.
+
+    ```text
+    Here is the summary:
+    ```
+  </Tab>
+</Tabs>
+
+## Variables
+
+Variables let you inject dynamic values into prompts at runtime. Use double curly braces: `{{variable_name}}`.
+
+**Defining variables:** Variables are declared in the **Variables** panel on the left side of the IDE. Each variable has:
+- A name (used in the `{{name}}` reference)
+- A type: Text, Number, Select (dropdown), or Paragraph
+- Optional default value and placeholder text
+- A required/optional flag
+
+**Built-in variables:**
+
+| Variable | Description |
+|---|---|
+| `{{query}}` | The user's current message (chatbot mode) |
+| `{{context}}` | Chunks retrieved from connected knowledge bases |
+| `{{conversation_id}}` | The current conversation identifier |
+
+**Example prompt with variables:**
+
+```text
+You are a technical writer. Your task is to write documentation for the {{product_name}} API.
+Target audience: {{audience_level}} developers.
+Focus area: {{topic}}
+```
+
+## Model parameter tuning
+
+The right panel exposes the model's generation parameters. These map directly to the parameters accepted by `ModelInstance.invoke_llm`.
+
+| Parameter | Effect |
+|---|---|
+| **Model** | Switch between any configured LLM provider and model |
+| **Temperature** | Controls output randomness. Lower values (0.0–0.3) produce deterministic, focused responses. Higher values (0.7–1.0) produce more varied, creative responses. |
+| **Top P** | Nucleus sampling threshold. Limits token selection to the smallest set of tokens whose cumulative probability exceeds Top P. |
+| **Max tokens** | Maximum number of tokens in the model's response. |
+| **Presence penalty** | Penalizes tokens that have already appeared in the output, reducing repetition. |
+| **Frequency penalty** | Penalizes tokens proportional to how often they have appeared, reducing repetition more aggressively. |
+| **Stop sequences** | A list of strings that, when generated, cause the model to stop. |
+
+<Tip>Start with Temperature 0.7 and Max tokens 1024 for general-purpose chatbots. Lower Temperature to 0.2–0.3 for factual Q&A or structured output tasks.</Tip>
+
+## A/B testing with model comparison
+
+The Prompt IDE includes a **Compare** mode that lets you run the same prompt against two different models or parameter configurations side by side.
+
+<Steps>
+  <Step title="Open compare mode">
+    Click the **Compare** button in the toolbar. A second model panel appears alongside the primary panel.
+  </Step>
+  <Step title="Configure the second model">
+    Select a different model or change parameters (e.g., temperature) for the second panel. Both panels share the same prompt and variable values.
+  </Step>
+  <Step title="Run a test">
+    Enter a test message or fill in the variable form and click **Run**. Both models execute in parallel and their responses appear side by side.
+  </Step>
+  <Step title="Evaluate and choose">
+    Compare the quality, length, and style of both responses. Promote the better configuration to your primary model settings.
+  </Step>
+</Steps>
+
+## Text-to-speech configuration
+
+For chatbot apps, you can enable text-to-speech (TTS) so the assistant's responses are read aloud in the web interface.
+
+1. In **App settings**, toggle **Text to speech** on.
+2. Select a TTS provider and voice. Dify routes TTS requests through `ModelInstance.invoke_tts`, which accepts `content_text`, `tenant_id`, `voice`, and `user` parameters.
+3. Optionally select a **language** to match the TTS voice to the expected response language.
+
+Available voices depend on the configured TTS model provider (e.g., OpenAI TTS, Azure Speech, ElevenLabs).
+
+## Vision and image input configuration
+
+For models that support the `VISION` feature (detected via `ModelFeature.VISION` in the model schema), you can enable image uploads in the chat interface.
+
+1. In **Features**, toggle **Image upload** on.
+2. Set the **Image detail** level: `low` (faster, fewer tokens) or `high` (more accurate, more tokens). This maps to `ImagePromptMessageContent.DETAIL`.
+3. Set the maximum number of images per message.
+
+When a user attaches an image, it is encoded into the prompt message content as `ImagePromptMessageContent` alongside the text query.
+
+<Warning>Vision input is only available for models that explicitly list `VISION` as a supported feature. Enabling vision for a model that does not support it will result in an invocation error.</Warning>
+
+## Speech-to-text input
+
+To allow users to send voice messages that are transcribed before being sent to the LLM:
+
+1. In **Features**, toggle **Speech to text** on.
+2. Select an STT model. Dify routes transcription through `ModelInstance.invoke_speech2text`.
+
+The transcribed text is treated as a normal user message and processed through the standard prompt pipeline.
